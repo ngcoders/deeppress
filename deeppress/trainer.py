@@ -1,11 +1,10 @@
+from __future__ import absolute_import
+
 import sys
 import logging
 import tensorflow as tf
 import time
 import threading
-from queue import Queue
-from functools import wraps
-from logging.handlers import QueueHandler
 
 
 from bottle import route, run, install
@@ -17,21 +16,7 @@ from web import AuthPlugin
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-# Add handler to get current status of training
-
-
-_LOGGER = logging.getLogger('deeppress')
-_LOGGER.setLevel(logging.DEBUG)
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
-# log_queue = Queue(10)
-# qh = QueueHandler(log_queue)
-# add formatter to ch
-ch.setFormatter(formatter)
-_LOGGER.addHandler(ch)
-# _LOGGER.addHandler(qh)
+_LOGGER = logging.getLogger('deeppress.trainer')
 
 
 class TrainingApp(object):
@@ -124,22 +109,6 @@ class TrainingApp(object):
             """Stop the running job"""
             self.stop()
 
-        # @route('/logs')
-        # def get_logs():
-        #     """Get log messages"""
-        #     all_msg = []
-        #     while True:
-        #         try:
-        #             record = log_queue.get_nowait()
-        #             if record:
-        #                 all_msg.append("%s %s : %s" % (record.asctime, record.levelname, record.getMessage()))
-        #         except:
-        #             break
-        #
-        #         if len(all_msg) > 10:
-        #             break
-        #
-        #     return {"log": all_msg}
 
 if __name__ == '__main__':
 

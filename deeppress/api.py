@@ -13,12 +13,17 @@ import config
 from config import WP_MODULES_URL, WP_URL
 
 _LOGGER = logging.getLogger('deeppress.api')
+_LOGGER.setLevel(logging.DEBUG)
 # import tqdm
 
 # Range in data
 
 download_dir = "downloads/"
 
+
+def get_auth_header():
+    """Get Basic Auth for WordPress"""
+    return None
 
 class BasePool():
     def __init__(self, num_workers=5):
@@ -81,42 +86,6 @@ def get_last_data(group, page=1, per_page=10, extra=None):
     return result
 
 
-def upload_processed_images(lst, group):
-    """
-    Upload processed images to the server.
-
-    :param lst:
-    :param group:
-    :return:
-    """
-    # print(lst)
-    for url in lst:
-        prpath = url['processed_image_file']
-        if not prpath:
-            files = {}
-            # continue
-        else:
-            files = {
-                'detections': (None, json.dumps(url['detections']), 'application/json'),
-                'processed_image': (os.path.basename(prpath), open(prpath, 'rb'), 'application/octet-stream')
-            }
-        count = url['count']
-        detections = '[]'
-        if count > 0:
-            detections = json.dumps(url['detections'])
-
-        r = requests.post(
-            "{}/{}".format(WP_URL, url['id']),
-            # 'http://localhost:5555',
-            files=files,
-            data={
-                'count': count,
-                'processed': 1
-            }
-        )
-        # print(r.text)
-
-
 def upload_raw_image(group, _item):
     """
     Upload raw image to the server.
@@ -144,20 +113,6 @@ def upload_raw_image(group, _item):
             'batt': batt
         }
     )
-
-
-def get_last_image_time(group):
-    """
-    Get last image time from WordPress Server for the given group.
-
-    :param group:
-    :return:
-    """
-    _data = get_last_data(group, per_page=1)
-    if isinstance(_data, dict) and 'data' in _data.keys():
-        if len(_data['data']) > 0:
-            return _data['data'][0]['created_at']
-    return None
 
 
 def delete_images(records):
@@ -197,7 +152,7 @@ def get_models(page=1, per_page=10, extra=None):
     :return: list of models
     """
 
-    endpoint = "{}/ba_models/records".format(WP_MODULES_URL)
+    endpoint = "{}/dp_models".format(WP_MODULES_URL)
 
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
@@ -209,7 +164,7 @@ def get_jobs(page=1, per_page=10, extra=None):
     :return: list of models
     """
 
-    endpoint = "{}/ba_jobs/records".format(WP_MODULES_URL)
+    endpoint = "{}/dp_jobs".format(WP_MODULES_URL)
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
 
@@ -220,7 +175,7 @@ def get_job(id):
     :return: list of models
     """
 
-    endpoint = "{}/ba_jobs/records/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_jobs/{}".format(WP_MODULES_URL, id)
     return get_module_records(endpoint)
 
 
@@ -232,7 +187,7 @@ def update_model(id, data):
     :param data: Data to update
     :return:
     """
-    endpoint = "{}/ba_models/records/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_models/{}".format(WP_MODULES_URL, id)
     print(endpoint)
     r = requests.post(
             endpoint,
@@ -248,7 +203,7 @@ def update_job(id, data):
     :param data: Data to update
     :return:
     """
-    endpoint = "{}/ba_jobs/records/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_jobs/{}".format(WP_MODULES_URL, id)
     r = requests.post(
             endpoint,
             data=data
@@ -278,7 +233,7 @@ def get_model(id):
     :param data: Data to update
     :return:
     """
-    endpoint = "{}/ba_models/records/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_models/{}".format(WP_MODULES_URL, id)
     r = requests.get(endpoint)
     _LOGGER.debug(r.text)
     return r.json()
@@ -300,8 +255,10 @@ def get_module_records(endpoint, per_page=10, page=1, extra=None):
     }
     if extra:
         params.update(extra)
-
+    # _LOGGER.debug(endpoint)
     r = requests.get(endpoint, params=params, timeout=10)
+    if r.status_code in [401, 403]:
+        raise Exception("Auth error with wordpress")
     # _LOGGER.debug(r.text)
     result = r.json()
     # _LOGGER.debug(result)
@@ -317,7 +274,7 @@ def get_groups_list(page=1, per_page=10, extra=None):
     :param extra: Extra filters
     :return: List of groups
     """
-    endpoint = "{}/ba_groups/records".format(WP_MODULES_URL)
+    endpoint = "{}/dp_groups".format(WP_MODULES_URL)
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
 
@@ -446,7 +403,7 @@ def mark_trained(ids):
 
 def get_classes(page=1, per_page=500, extra=None):
     """Get object classes"""
-    endpoint = "{}/ba_classes/records".format(WP_MODULES_URL)
+    endpoint = "{}/dp_classes".format(WP_MODULES_URL)
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
 if __name__ == "__main__":
