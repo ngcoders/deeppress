@@ -23,9 +23,10 @@ import api
 from image_to_tfr import TFRConverter
 import exporter
 from eval import run_eval
-from config import REMOTE_SERVER, WP_BASE_URL, MINIMUM_TRAIN_DATASET, MULTI_LABEL
+from config import REMOTE_SERVER, WP_BASE_URL, MINIMUM_TRAIN_DATASET
 import config
 from utils import TFLogHandler, StatusThread
+import label_maker
 
 _LOGGER = logging.getLogger('deeppress.job')
 
@@ -139,11 +140,8 @@ class TrainingJob(Process):
             file_io.recursive_create_dir(self.data_dir)
 
         labels_file = "{}/labels.pbtxt".format(self.data_dir)
-        if MULTI_LABEL:
-            import label_maker
-            label_maker.make(labels_file)
-        else:
-            shutil.copy('nets/baheads_map.pbtxt', labels_file)
+
+        label_maker.make(labels_file)
 
         with TFRConverter(self.data_dir, labels_file=labels_file) as tf_converter:
             for group in self.groups:
@@ -216,13 +214,13 @@ class TrainingJob(Process):
             stats = tf_converter.counts
             msg = "Dataset:- Train : {}, Test : {}".format(stats['train'], stats['test'])
             _LOGGER.info(msg)
-            model = api.update_job_state(model, 'running', msg)
-            model = api.update_job_state(model, 'running', 'Preparing dataset complete')
+            model = api.update_job_state(self.job, 'running', msg)
+            model = api.update_job_state(self.job, 'running', 'Preparing dataset complete')
 
             # TODO: Check for minimum requirements for train test data
             if stats['train'] < MINIMUM_TRAIN_DATASET:
                 _LOGGER.info("Minimum images required for training")
-                model = api.update_job_state(model, 'error', 'Dataset not enough for training')
+                model = api.update_job_state(self.job, 'error', 'Dataset not enough for training')
                 return False
             else:
                 return True

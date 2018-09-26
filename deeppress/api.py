@@ -79,7 +79,12 @@ def get_last_data(group, page=1, per_page=10, extra=None):
     if extra:
         params.update(extra)
 
-    r = requests.get(endpoint, params=params, timeout=10)
+    r = requests.get(
+        endpoint,
+        params=params,
+        auth=(config.WP_USERNAME, config.WP_PASSWORD),
+        timeout=10
+    )
     # _LOGGER.debug(r.text)
     result = r.json()
     # print(result)
@@ -191,6 +196,7 @@ def update_model(id, data):
     print(endpoint)
     r = requests.post(
             endpoint,
+            auth=(config.WP_USERNAME, config.WP_PASSWORD),
             data=data
         )
     _LOGGER.debug(r.text)
@@ -206,6 +212,7 @@ def update_job(id, data):
     endpoint = "{}/dp_jobs/{}".format(WP_MODULES_URL, id)
     r = requests.post(
             endpoint,
+            auth=(config.WP_USERNAME, config.WP_PASSWORD),
             data=data
         )
     _LOGGER.debug(r.text)
@@ -234,7 +241,7 @@ def get_model(id):
     :return:
     """
     endpoint = "{}/dp_models/{}".format(WP_MODULES_URL, id)
-    r = requests.get(endpoint)
+    r = requests.get(endpoint, auth=(config.WP_USERNAME, config.WP_PASSWORD))
     _LOGGER.debug(r.text)
     return r.json()
 
@@ -256,7 +263,12 @@ def get_module_records(endpoint, per_page=10, page=1, extra=None):
     if extra:
         params.update(extra)
     # _LOGGER.debug(endpoint)
-    r = requests.get(endpoint, params=params, timeout=10)
+    r = requests.get(
+        endpoint,
+        params=params,
+        auth=(config.WP_USERNAME, config.WP_PASSWORD),
+        timeout=10
+    )
     if r.status_code in [401, 403]:
         raise Exception("Auth error with wordpress")
     # _LOGGER.debug(r.text)
@@ -395,7 +407,8 @@ def mark_trained(ids):
             "{}/0/trained".format(WP_URL),
             data={
                 'ids[]': ids
-            }
+            },
+            auth=(config.WP_USERNAME, config.WP_PASSWORD)
         )
     if r.status_code != 200:
         _LOGGER.debug(r.text)
