@@ -53,14 +53,17 @@ class TrainingApp(object):
                                 _LOGGER.debug("Job is paused")
                                 continue
 
-                            self.current_job = TrainingJob(record)
-                            self.current_job.start()
-                            # TODO: Run loop to check job status from server
-                            self.check_job_status(record['id'])
-                            self.current_job.join()
-                            self.current_job = None
+                            if record['model_type'] == 'detector':
+                                self.current_job = TrainingJob(record)
+                                self.current_job.start()
+                                # TODO: Run loop to check job status from server
+                                self.check_job_status(record['id'])
+                                self.current_job.join()
+                                self.current_job = None
+                            else:
+                                _LOGGER.error('Training for model type %s not implemented' % record['model_type'])
                             page = 1
-                            break
+                            # break
 
                         # if len(jobs) == total:
                         #     break
