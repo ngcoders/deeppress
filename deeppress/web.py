@@ -1,6 +1,6 @@
 from functools import wraps
 
-from bottle import request, HTTPError
+from deeppress.bottle import request, HTTPError
 
 
 class AuthPlugin(object):
