@@ -23,9 +23,6 @@
 			<tr>
 				<td>Added On</td><td id="col-created-at"><?php echo $record['created_at']; ?></td>
 			</tr>
-			<tr>
-				<td>Processed</td><td id="col-processed"><?php echo $record['processed']; ?></td>
-			</tr>
 		</table>
 	</div>
 </div>

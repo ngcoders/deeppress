@@ -1,15 +1,4 @@
 <?php
-
-/**
- * The admin-specific functionality of the plugin.
- *
- * @link       http://example.com
- * @since      1.0.0
- *
- * @package    DeepPress
- * @subpackage DeepPress/admin
- */
-
 /**
  * The admin-specific functionality of the plugin.
  *
@@ -117,6 +106,12 @@ class DeepPress_Admin {
 		);
 	}
 
+	public function admin_init_actions(){
+		// add_option( 'deeppress_remote_url', 'This is my option value.');
+   		register_setting( 'deeppress_options_group', 'deeppress_remote_url', 'myplugin_callback' );
+		$this->process_actions();
+	}
+
 	public function add_menu_page() {
 		$this->admin_page = add_menu_page(
 			"DeepPress Settings",
@@ -152,8 +147,16 @@ class DeepPress_Admin {
 			array($this, 'stats_page')
 		);
 
+		add_submenu_page('deeppress',
+			'Test',
+			'Test',
+			'edit_others_posts',
+			'test',
+			array($this, 'test_page')
+		);
+
 		add_action("load-{$this->admin_page}",array($this,'create_help_screen'));
-		// add_options_page("DeepPress Settings", "DeepPress", 'manage_options', 'deeppress-options', array($this, 'options_page'));
+		add_options_page("DeepPress Settings", "DeepPress", 'manage_options', 'deeppress_options', array($this, 'options_page'));
 	}
 
 	public function create_help_screen() {
@@ -178,13 +181,16 @@ class DeepPress_Admin {
 		if ( !current_user_can( 'manage_options' ) )  {
 			wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
 		}
-		$optionName = 'deeppress_auth_key';
-		if(isset($_POST['authkey'])) {
-			update_option($optionName, $_POST['authkey']);
+		$optionName = 'deeppress_remote_url';
+		if(isset($_POST['deeppress_remote_url'])) {
+			update_option($optionName, $_POST['deeppress_remote_url']);
 		}
-
-		$auth_key = get_option($optionName);
-
+		if(isset($_POST['deeppress_remote_username'])) {
+			update_option('deeppress_remote_username', $_POST['deeppress_remote_username']);
+		}
+		if(isset($_POST['deeppress_remote_password'])) {
+			update_option('deeppress_remote_password', $_POST['deeppress_remote_password']);
+		}
 		?>
 
 		<div class="wrap">
@@ -192,18 +198,30 @@ class DeepPress_Admin {
 	        <h1 class="wp-heading-inline">Manage DeepPress Settings</h1>
 	        <div>
 	        	<form id="deeppress-update-options" method="post">
-					<input type="hidden" name="action" value="store">
+					<?php settings_fields( 'deeppress_options_group' ); ?>
 					
 					<table class="form-table">
 						<tr>
-							<th scope="row"><label>Auth Key</label>	</th>
+							<th scope="row"><label>Remote Host Url</label>	</th>
 							<td>
-								<input type="text" name="authkey" value="<?php echo $auth_key; ?>">
+								<input type="text" name="deeppress_remote_url" value="<?php echo get_option('deeppress_remote_url'); ?>">
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label>Remote Username</label>	</th>
+							<td>
+								<input type="text" name="deeppress_remote_username" value="<?php echo get_option('deeppress_remote_username'); ?>">
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label>Remote Password</label>	</th>
+							<td>
+								<input type="text" name="deeppress_remote_password" value="<?php echo get_option('deeppress_remote_password'); ?>">
 							</td>
 						</tr>
 						<tr>
 							<th scope="row">
-								<button>Save</button>
+							<?php  submit_button(); ?>
 							</th>
 						</tr>
 					</table>
@@ -302,6 +320,12 @@ class DeepPress_Admin {
 	    <?php
 
 	}
+
+	public function test_page()
+	{
+		$models = [];
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/partials/deeppress-admin-test-page.php';
+	}
 	
 	/**
 	 * Classification Page
@@ -377,7 +401,7 @@ class DeepPress_Admin {
 		                $required_class = ' required';
 		                $required_label = ' <span class="required">*</span>';
 	                }
-	                echo '<tr id="ba-' . $f['name'] . '" class="form-field field field_type-' . $f['type'] . $required_class . '" data-field_name="' . $f['name'] . '" data-field_key="' . $f['name'] . '" data-field_type="' . $f['type'] . '">';
+	                echo '<tr id="ba-' . $f['name'] . '" class="form-field field field_type-' . $f['type'] . $required_class . ' field_key-' . $f['key'] .' data-field_name="' . $f['name'] . '" data-field_key="' . $f['name'] . '" data-field_type="' . $f['type'] . '">';
 	                echo '<th valign="top" scope="row"><label for="' . $f['name'] . '">' . $f['placeholder'] . $required_label . '</label></th>';
 	                echo '<td>';
 	                do_action('dp/create_field', $f );
@@ -471,20 +495,46 @@ class DeepPress_Admin {
 			$uploadedfile = $_FILES['image'];
 			$upload_overrides = array( 'test_form' => false );
 			$movefile = wp_handle_upload( $uploadedfile, $upload_overrides );
-			var_dump($movefile);
 
 			if ( $movefile && ! isset( $movefile['error'] ) ) {
-			    $data['image'] = $movefile['url'];
-			    $data['image_file'] = $movefile['file'];
+				if ( $movefile['type'] == "application/zip") {
+					$wp_up_dir = wp_upload_dir();
+					$new_location = $wp_up_dir['path'] . '/'. time();
+					if(! mkdir($new_location, 0777, true))
+						return;
+					$zip_file = $movefile['file'];
+					WP_Filesystem();
+					$unzipfile = unzip_file( $zip_file, $new_location);
+	
+					if ( is_wp_error( $unzipfile ) ) {
+							var_dump($unzipfile);
+							echo 'There was an error unzipping the file.'; 
+							unlink($zip_file);
+							return;
+					} 
+					unlink($zip_file);
+					$dir = $new_location;
+					$files = apply_filters('dp_images_in_dir', $dir);
+					foreach($files as $f){
+						$pos =  strpos($f, "/wp-content");		        		
+						$data['image'] = substr($f, $pos);
+						$data['image_file'] = $f;
+						$result = $wpdb->insert($wpdb->prefix . 'deeppress', $data);
+					}
+				} else {
+					$data['image'] = $movefile['url'];
+					$data['image_file'] = $movefile['file'];
+					$result = $wpdb->insert($wpdb->prefix . 'deeppress', $data);
+					
+				}
+				$wpdb->show_errors();
+			    
 			} else {
 			    echo $movefile['error'];
 			}
 		}
 
-		if (isset($_POST['id'])) {
-			$wpdb->update($wpdb->prefix . 'deeppress', $data, array('id' => $_POST['id']));
-		} else 
-			$result = $wpdb->insert($wpdb->prefix . 'deeppress', $data);
+		// $result = $wpdb->insert($wpdb->prefix . 'deeppress', $data);
 		
 		// //$redirect_to = add_query_arg( $query, menu_page_url( 'deeppress', false ) );
 		// wp_redirect(menu_page_url('deeppress'));

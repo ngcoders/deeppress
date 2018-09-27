@@ -78,7 +78,8 @@ $dp_modules = array(
 				'placeholder'   =>  'New Model Creation type',
 				'value'     =>  'new',
 				'choices'   => ['new' => "New Model", 'extend' => 'Inherit from parent'],
-				'instructions'  => 'Type of new model.<br>New Model : A new model will be created from zero.'
+				'instructions'  => 'Type of new model.<br>New Model : A new model will be created from zero.',
+				'key' => 'type'
 			],
 			'architecture' => [
 				'name'  =>  'architecture',
@@ -86,7 +87,9 @@ $dp_modules = array(
 				'placeholder'   =>  'New Model Architecture',
 				'value'     =>  '',
 				'choices'           => $models,
-				'instructions'  =>  'Model architecture for New Model.'
+				'instructions'  =>  'Model architecture for New Model.',
+				'key'	=>	'architecture',
+				'conditional_logic'	=> ['allorany'=> 'all', 'status'=> 1, 'rules'=>[['field' => 'type', 'value'=> "new", 'operator'=> '==']]]
 			],
 			'parent' => [
 				'name'  =>  'parent',
@@ -96,7 +99,9 @@ $dp_modules = array(
 				'placeholder'   =>  'Parent Model',
 				'value'     =>  '0',
 				'choices'   => ['0' => "Base SSD Inception"],
-				'instructions'  =>  'This model will be used as parent model.'
+				'instructions'  =>  'This model will be used as parent model.',
+				'key'	=>	'parent',
+				'conditional_logic'	=> ['allorany'=> 'all', 'status'=> 1, 'rules'=>[['field' => 'type', 'value'=> "extend", 'operator'=> '==']]]
 			],
 			'last_trained' => [
 				'name'  =>  'last_trained',
@@ -142,7 +147,17 @@ $dp_modules = array(
 				'placeholder'   =>  'Detector Model',
 				'value'     =>  '0',
 				'choices'   => [],
-				'instructions'  =>  'This model will be trained.'
+				'instructions'  =>  'This model will be trained.',
+				'key'	=> 'model'
+			],
+			'model_type' => [
+				'name'  =>  'model_type',
+				'type'  =>  'select',
+				'placeholder'   =>  'Model type',
+				'value'     =>  'detector',
+				'choices'   => ['detector' => "Object Detector", 'classifier' => 'Image Classifier'],
+				'instructions'  => 'New model type.<br>Object Detector : Detect objects in images.<br>Image Classifier: Classify images.',
+				'key'	=> 'model_type'
 			],
 			'groups' => [
 				'name'  =>  'groups',
@@ -152,10 +167,28 @@ $dp_modules = array(
 				'placeholder'   =>  'Groups',
 				'value'     =>  '0',
 				'choices'   => [],
-				'instructions'  =>  'Group for training.',
+				'instructions'  =>  'Group for training. If model is object detection',
 				'multiple'  => 1,
 				'foreign_key'   =>  'group_id',
-				'serialize' =>  1
+				'serialize' =>  1,
+				'key'	=>	'groups',
+				'conditional_logic'	=> ['allorany'=> 'all', 'status'=> 1, 'rules'=>[['field' => 'model_type', 'value'=> "detector", 'operator'=> '==']]]
+			],
+			'categories' => [
+				'name'  =>  'categories',
+				'type'  =>  'select',
+				'relative' =>  1,
+				'module'    =>  'deeppress_classification',
+				'placeholder'   =>  'Categories',
+				'value'     =>  '0',
+				'choices'   => [],
+				'instructions'  =>  'Categories if model is Classification type.',
+				'multiple'  => 1,
+				'foreign_key'   =>  'category',
+				'foreign_key_name'	=> 'Category',
+				'serialize' =>  1,
+				'key'	=>	'categories',
+				'conditional_logic'	=> ['allorany'=> 'all', 'status'=> 1, 'rules'=>[['field' => 'model_type', 'value'=> "classifier", 'operator'=> '==']]]
 			],
 			'steps' => [
 				'name'  =>  'steps',

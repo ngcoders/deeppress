@@ -99,8 +99,11 @@ class DeepPress_Rest_Classification
         }
 
         // Total records
-        $total_items = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $table_name $where_cmd", $query_args) );
-
+        if (sizeof($query_args) > 0)
+            $total_items = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $table_name $where_cmd", $query_args) );
+        else
+            $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        
         $query_args[] = $per_page;
         $query_args[] = ($current_page-1)*$per_page;
 

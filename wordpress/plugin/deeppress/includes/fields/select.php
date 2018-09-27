@@ -55,15 +55,21 @@ class dp_field_select extends dp_field
 
 		if(isset($field['relative']) && $field['relative']) {
 		    // Get choices from other model
-            global $wpdb, $dp_modules;
+			global $wpdb, $dp_modules;
 			$field_name = 'name';
+			if(isset($field['foreign_key_name']))
+				$field_name = $field['foreign_key_name'];
             $module_name = $field['module'];
             $table_name = $wpdb->prefix . $module_name;
             $key = 'id';
             if(isset($field['foreign_key']) && $field['foreign_key']) {
 	            $key = $field['foreign_key'];
-            }
-			$result = $wpdb->get_results( "SELECT $key as id, $field_name FROM $table_name",ARRAY_A	);
+			}
+			// $q = "SELECT DISTINCT $key as id, $field_name FROM $table_name";
+			// if(isset($field['group_by'])){
+			// 	$q .= " GROUP BY " . $field['group_by'];
+			// }
+			$result = $wpdb->get_results( "SELECT DISTINCT $key as id, $field_name FROM $table_name",ARRAY_A	);
 			foreach ($result as $r) {
 			    $field['choices'][$r['id']] = $r[$field_name];
             }

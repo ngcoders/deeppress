@@ -815,7 +815,7 @@ var ba = {
 					val = [ val ];
 				}
 				
-				
+
 				if( rule.operator == "==" )
 				{
 					if( $.inArray(rule.value, val) > -1 )

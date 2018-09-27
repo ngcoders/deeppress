@@ -24,8 +24,34 @@ class dp_basic_functions
         add_filter('get_deeppress_record', array($this, 'get_record'), 5, 1);
         add_filter('get_classification_record', array($this, 'get_classification_record'), 5, 1);
 		add_filter('get_deeppress_group_last_record', array($this, 'get_group_last_record'), 5, 1);
-		add_filter('dp_show_deeppress_stats', array($this, 'deeppress_stats'), 5, 1);
-	}
+        add_filter('dp_show_deeppress_stats', array($this, 'deeppress_stats'), 5, 1);
+
+        add_filter('dp_images_in_dir', array($this, 'dp_images_in_dir'), 5, 1);
+    }
+    
+    public function dp_images_in_dir($dir) {
+        $ffs = scandir($dir);
+        $all = [];
+        unset($ffs[array_search('.', $ffs, true)]);
+        unset($ffs[array_search('..', $ffs, true)]);
+    
+        // prevent empty ordered elements
+        if (count($ffs) < 1)
+            return $all;
+    
+        foreach($ffs as $ff){
+            $file_path = $dir.'/'.$ff; 
+            if(is_dir($file_path)) {
+                $all = array_merge($all, apply_filters('dp_images_in_dir', $file_path)) ;   
+            } else {
+                $ext = pathinfo($file_path, PATHINFO_EXTENSION);
+                if(in_array(strtolower($ext) , ['jpeg', 'jpg', 'png']))
+                    $all[] = $file_path;
+            }
+        }
+        // echo '</ol>';
+        return $all;
+    }
 
 	function get_record($id)
     {

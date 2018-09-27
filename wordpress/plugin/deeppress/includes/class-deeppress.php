@@ -78,6 +78,7 @@ class DeepPress {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-deeppress-i18n.php';
 
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-deeppress-admin.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-deeppress-admin-ajax.php';
 
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-deeppress-public.php';
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-deeppress-rest-public.php';
@@ -115,8 +116,12 @@ class DeepPress {
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_menu_page' );
 		$this->loader->add_action( 'deeppress_save_record', $plugin_admin, 'save_record' );
 		$this->loader->add_action( 'wp_ajax_deeppress_save_annotation', $plugin_admin, 'save_annotation' );
-		$this->loader->add_action( 'admin_init', $plugin_admin, 'process_actions' );
+		$this->loader->add_action( 'admin_init', $plugin_admin, 'admin_init_actions' );
 		$this->loader->add_action( 'init', $plugin_admin, 'init_actions' );
+
+		// Ajax
+		$plugin_ajax = new DeepPress_Admin_Ajax( $this->get_plugin_name(), $this->get_version() );
+		$this->loader->add_action( 'wp_ajax_dp_get_models', $plugin_ajax, 'get_models' );
 	}
 
 	private function define_public_hooks() {

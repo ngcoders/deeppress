@@ -75,6 +75,10 @@ class DeepPress_List_Table extends WP_List_Table {
 		);
 	}
 
+	function column_remarks($item){
+		return '<div style="max-height: 200px;overflow-y: scroll;">'. $item['remarks'] . "</div>";
+	}
+
 	function get_columns(){
 		$columns = array(
 			'cb'                => '<input type="checkbox" />', //Render a checkbox instead of text
