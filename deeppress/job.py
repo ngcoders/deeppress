@@ -271,7 +271,7 @@ class TrainingJob(Process):
             _LOGGER.debug("Checkpoints doesn't exists")
 
             base_checkpoints_path = os.path.join(config.BASE_MODELS_PATH, model['architecture'])
-            _tmf = os.path.join(config.TRAINED_MODEL_DATA, model['file_name'])
+            _tmf = os.path.join(config.TRAINED_MODELS_DATA, model['file_name'])
             if os.path.isdir(_tmf):
                 _LOGGER.debug("Model already exists as %s" % model_graph)
                 base_checkpoints_path = _tmf
@@ -283,7 +283,7 @@ class TrainingJob(Process):
                 if not parent_model:
                     raise Exception('Parent model not found on server')
 
-                parent_tmf = os.path.join(config.TRAINED_MODEL_DATA, parent_model['file_name'])
+                parent_tmf = os.path.join(config.TRAINED_MODELS_DATA, parent_model['file_name'])
                 if os.path.isdir(parent_tmf):
                     base_checkpoints_path = parent_tmf
                 else:
@@ -476,7 +476,7 @@ class TrainingJob(Process):
             # Training complete. Export model
             _LOGGER.debug("Training complete for %d steps" % num_steps)
             job = api.update_job_state(job, 'training', 'Training complete')
-            export_path = os.path.join(config.TRAINED_MODEL_DATA, model['file_name'])
+            export_path = os.path.join(config.TRAINED_MODELS_DATA, model['file_name'])
             if os.path.exists(export_path):
                 shutil.rmtree(export_path)
             ckpt_path = os.path.join(train_dir, 'model.ckpt-{}'.format(num_steps))
