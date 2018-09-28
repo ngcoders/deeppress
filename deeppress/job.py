@@ -319,7 +319,7 @@ class TrainingJob(Process):
 
         if os.path.exists(os.path.join(train_dir, 'data')):
             shutil.rmtree(os.path.join(train_dir, 'data'))
-        shutil.copytree(os.path.join('data', model['file_name']), os.path.join(train_dir, 'data'))
+        shutil.copytree(self.data_dir, os.path.join(train_dir, 'data'))
 
         counts = {'train': 0, 'test': 1000, 'classes': 1}
         stats_file = os.path.join(train_dir, "data", "stats.json")
