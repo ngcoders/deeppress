@@ -8,9 +8,9 @@ import threading
 import logging
 from tqdm import tqdm
 
-import config
+from deeppress import config
 
-from config import WP_MODULES_URL, WP_URL
+from deeppress.config import WP_MODULES_URL, WP_URL
 
 _LOGGER = logging.getLogger('deeppress.api')
 _LOGGER.setLevel(logging.DEBUG)

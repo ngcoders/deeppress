@@ -3,7 +3,7 @@ import re
 import threading
 import time
 
-import api
+from deeppress import api
 
 _LOGGER = logging.getLogger('deeppress.utils')
 

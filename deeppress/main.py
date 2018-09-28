@@ -31,18 +31,36 @@ def enable_cors():
     response.headers['Access-Control-Allow-Methods'] = 'PUT, GET, POST, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token'
 
+
 @route('/classify')
 def classify_image():
     return "Not implemented yet"
+
 
 @route('/detect', method='POST')
 def detect_objects():
     model = request.forms.get('model')
     image = request.files.get('image')
-    thresh = float(request.forms.get('thresh'))
+    thresh = request.forms.get('thresh', default=75, type=int)
+    if thresh < 1 or thresh > 99:
+        return {'success': False, 'error': "Thresh value should be from 1 to 99"}
+    thresh //= 100
     app.load_model(model)
     box = app.detect(image.file.read(), thresh)
     return {'success': True, 'box': box}
+
+
+@route('/training/status', method="GET")
+def get_trainig_status():
+    if app.is_training():
+        return {'success': True, 'status': app.get_training_status()}
+    else:
+        return {'success': False}
+
+@route('/training/start', method='POST')
+def train_model():
+    app.start_training()
+    return {'success': True}
 
 run(host='localhost', port=8080)
 

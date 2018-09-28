@@ -19,14 +19,14 @@ from object_detection.builders import model_builder
 from object_detection.utils import config_util
 
 
-import api
-from image_to_tfr import TFRConverter
-import exporter
-from eval import run_eval
-from config import REMOTE_SERVER, WP_BASE_URL, MINIMUM_TRAIN_DATASET
-import config
-from utils import TFLogHandler, StatusThread
-import label_maker
+from deeppress import api
+from deeppress.image_to_tfr import TFRConverter
+from deeppress import exporter
+from deeppress.eval import run_eval
+from deeppress.config import REMOTE_SERVER, WP_BASE_URL, MINIMUM_TRAIN_DATASET, TRAINED_MODEL_PATH
+from deeppress import config
+from deeppress.utils import TFLogHandler, StatusThread
+from deeppress import label_maker
 
 _LOGGER = logging.getLogger('deeppress.job')
 
@@ -56,6 +56,7 @@ class TrainingJob(Process):
             "ETA": None,
             "job": job
         }
+        self.configs_dir = os.path.join(os.path.dirname(__file__), "configs")
         self.train_dir = 'models/job_{}'.format(self.job['id'])
         # If pipeline config file already there.
         self.already_running = os.path.isfile(os.path.join(self.train_dir, 'pipeline.config'))
@@ -99,6 +100,7 @@ class TrainingJob(Process):
                 api.update_model(_model['id'], {'file_name': file_name})
 
             self.model = _model
+            self.data_dir = "data/{}".format(_model['file_name'])
         else:
             raise Exception("Model not found")
 
@@ -265,7 +267,7 @@ class TrainingJob(Process):
 
         model = self.model
 
-        model_graph = os.path.join('nets', '{}.pb'.format(model['file_name']))
+        model_graph = os.path.join(TRAINED_MODEL_PATH, '{}.pb'.format(model['file_name']))
 
         if not os.path.exists(os.path.join(train_dir, 'checkpoint')):  # New training started
             _LOGGER.debug("Checkpoints doesn't exists")
@@ -331,7 +333,7 @@ class TrainingJob(Process):
 
         pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
         if not os.path.exists(pipeline_config_path):
-            pipeline_config_path = "configs/{}.config".format(model['architecture'])
+            pipeline_config_path = os.path.join(self.configs_dir, "{}.config".format(model['architecture']))
         task = '0'
         if task == '0':
             tf.gfile.MakeDirs(train_dir)
@@ -488,7 +490,7 @@ class TrainingJob(Process):
                 shutil.copy(frozen_graph, model_graph)
                 shutil.copy(
                     os.path.join(train_dir, 'data', "labels.pbtxt"),
-                    os.path.join('nets', '{}.pbtxt'.format(model['file_name']))
+                    os.path.join(TRAINED_MODEL_PATH, '{}.pbtxt'.format(model['file_name']))
                 )
                 # TODO: Eval the trained graph, Push the result to server.
                 eval_dir = 'eval_dir'

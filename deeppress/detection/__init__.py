@@ -7,6 +7,7 @@ from object_detection.utils import visualization_utils as vis_util
 import os
 import logging
 from deeppress.app_exceptions import ModelNotFound
+from deeppress import config
 
 logger = logging.getLogger('deeppress.detection')
 
@@ -18,6 +19,7 @@ class DetectorModel:
 
         self.detection_graph = None
         self.category_index = None
+        self.trained_models_path = config.TRAINED_MODEL_PATH
 
     def load(self, model):
         if self.model_file != model:
@@ -30,14 +32,14 @@ class DetectorModel:
 
     def load_labels(self):
         labels_file = "{}.pbtxt".format(self.model_file)
-        label_map = label_map_util.load_labelmap(os.path.join("/work/snapcam/deeplearning/nets", labels_file))
+        label_map = label_map_util.load_labelmap(os.path.join(self.trained_models_path, labels_file))
         categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=100, use_display_name=True)
         self.category_index = label_map_util.create_category_index(categories)
         print(self.category_index)
 
     def load_graph(self):
         logger.info("Loading graph %s" % self.graph_file)
-        model_path = os.path.join("/work/snapcam/deeplearning/nets", self.graph_file)
+        model_path = os.path.join(self.trained_models_path, self.graph_file)
         if not os.path.isfile(model_path):
             raise ModelNotFound(model_path)
         self.detection_graph = tf.Graph()
