@@ -33,16 +33,23 @@ def request_categories():
 
     return cat_dict, categories_id    
 
-def prepare_dataset(categories_id):
+def prepare_dataset(categories_id, filename):
+    path = '/home/aditya/{}/dataset/'.format(filename)
+    os.makedirs(path, exist_ok = True)
     for category in categories_id:
         cat_url = url + "{}/images".format(category)
         result = get_data(cat_url)
+        cat_path = path + '{}/'.format(category)
+        os.makedirs(cat_path, exist_ok = True)
         for res in result['data']:
             im_url = base_url + res
             response = requests.get(im_url)
             img = Image.open(BytesIO(response.content))
-            os.mkdir('/home/aditya/datasets/
-            img.save('/home/aditya/dataset/{}.jpg'.format(res[-15:-4]))
+            img.save(cat_path + ('/{}.jpg'.format(res[-15:-4])))
         print("category {} images saved".format(category))
     print("complete dataset saved")
+    return path
 
+#cat_dict, categories_id = request_categories()
+#path = prepare_dataset(categories_id, "wtpsth")
+#print(path, cat_dict)

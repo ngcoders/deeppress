@@ -3,7 +3,7 @@ from keras.models import Model
 from keras.layers import Input, Flatten, Dense
 from keras.preprocessing import image
 from keras.preprocessing.image import ImageDataGenerator
-
+import requests
 
 from sklearn.metrics import confusion_matrix
 from glob import glob
@@ -34,42 +34,42 @@ def get_model(model_id):
     for res in result['data']:
         id_ = int(res['id'])
         if id_ == model_id:
-           name = res['name']
+           filename = res['file_name']
            architecture = res['architecture']
-    return name, architecture
+    return filename, architecture
 
 def compile_model(architecture, categories_id):
     nb_classes = len(categories_id)
     if architecture == 'InceptionV3':
-       model, gen, input_size = inception(nb_classes)
-       return model, gen, input_size
+       model, gen = inception(nb_classes)
+       return model, gen
     if architecture == 'ResNet50':
-       model, gen, input_size = resnet(nb_classes)
-       return model, gen, input_size
+       model, gen = resnet(nb_classes)
+       return model, gen
     if architecture == 'VGG16':
-       model, gen, input_size = vgg16(nb_classes)
-       return model, gen, input_size
+       model, gen = vgg16(nb_classes)
+       return model, gen
     if architecture == 'VGG19':
-       model, gen, input_size = vgg19(nb_classes)
-       return model, gen, input_size
+       model, gen = vgg19(nb_classes)
+       return model, gen
     if architecture == 'Xception':
-       model, gen, input_size = xception(nb_classes)
-       return model, gen, input_size
+       model, gen = xception(nb_classes)
+       return model, gen
     if architecture == 'InceptionResNetV2':
-       model, gen, input_size = inception_resnet(nb_classes)
-       return model, gen, input_size
+       model, gen = inception_resnet(nb_classes)
+       return model, gen
     if architecture == 'MobileNet':
-       model, gen, input_size = mobilenet(nb_classes)
-       return model, gen, input_size
+       model, gen = mobilenet(nb_classes)
+       return model, gen
     if architecture == 'DenseNet':
-       model, gen, input_size = densenet(nb_classes)
-       return model, gen, input_size
+       model, gen = densenet(nb_classes)
+       return model, gen
     if architecture == 'NASNet':
-       model, gen, input_size = nasnet(nb_classes)
-       return model, gen, input_size
+       model, gen = nasnet(nb_classes)
+       return model, gen
     if architecture == 'MobileNetV2':
-       model, gen, input_size = mobilenet_v2(nb_classes)
-       return model, gen, input_size
+       model, gen = mobilenet_v2(nb_classes)
+       return model, gen
     else:
        raise Exception('Invalid Model Selection')
 
@@ -77,7 +77,7 @@ def compile_model(architecture, categories_id):
 def inception(nb_classes):
     from keras.applications.inception_v3 import InceptionV3, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (299,299,3))
+    input_tensor = Input(shape = (100,100,3))
     model = InceptionV3(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -98,13 +98,12 @@ def inception(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [299,299]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
 def resnet(nb_classes):
     from keras.applications.resnet50 import ResNet50, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (224,224,3))
+    input_tensor = Input(shape = (100,100,3))
     model = ResNet50(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -125,13 +124,12 @@ def resnet(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [224,224]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
 def vgg16(nb_classes):
     from keras.applications.vgg16 import VGG16, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (224,224,3))
+    input_tensor = Input(shape = (100,100,3))
     model = VGG16(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -152,13 +150,12 @@ def vgg16(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [224,224]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
 def vgg19(nb_classes):
     from keras.applications.vgg19 import VGG19, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (224,224,3))
+    input_tensor = Input(shape = (100,100,3))
     model = VGG19(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -179,13 +176,12 @@ def vgg19(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [224,224]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
 def xception(nb_classes):
     from keras.applications.xception import Xception, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (299,299,3))
+    input_tensor = Input(shape = (100,100,3))
     model = Xception(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -206,13 +202,12 @@ def xception(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [299,299]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
 def inception_resnet(nb_classes):
     from keras.applications.inception_resnet_v2 import InceptionResNetV2, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (299,299,3))
+    input_tensor = Input(shape = (100,100,3))
     model = InceptionResNetV2(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -233,13 +228,12 @@ def inception_resnet(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [299,299]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
 def mobilenet(nb_classes):
     from keras.applications.mobilenet import MobileNet, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (224,224,3))
+    input_tensor = Input(shape = (100,100,3))
     model = InceptionResNetV2(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -260,13 +254,12 @@ def mobilenet(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [224,224]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
 def densenet(nb_classes):
     from keras.applications.densenet import DenseNet121, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (224,224,3))
+    input_tensor = Input(shape = (100,100,3))
     model = DenseNet121(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -287,13 +280,12 @@ def densenet(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [224,224]
     return model_final, gen
 
 def nasnet(nb_classes):
     from keras.applications.nasnet import NASNetMobile, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (224,224,3))
+    input_tensor = Input(shape = (100,100,3))
     model = NASNetMobile(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -314,13 +306,12 @@ def nasnet(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [224,224]
-    return model_final, gen, INPUT_SIZE 
+    return model_final, gen
 
 def mobilenet_v2(nb_classes):
     from keras.applications.mobilenetv2 import MobileNetV2, preprocess_input
     K.clear_session()
-    input_tensor = Input(shape = (224,224,3))
+    input_tensor = Input(shape = (100,100,3))
     model = MobileNetV2(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
@@ -341,10 +332,10 @@ def mobilenet_v2(nb_classes):
        preprocessing_function=preprocess_input,
        validation_split = 0.8
     )
-    INPUT_SIZE = [224,224]
-    return model_final, gen, INPUT_SIZE
+    return model_final, gen
 
-
-model, gen, INPUT_SIZE = compile_model('InceptionV3',[1,2])
-print(model.summary(), INPUT_SIZE)
+#filename, architecture = get_model(1)
+#print(filename, architecture)
+#model, gen = compile_model('InceptionV3',[1,2])
+#print(model.summary())
 
