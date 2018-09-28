@@ -58,9 +58,17 @@ def get_trainig_status():
     else:
         return {'success': False}
 
+
 @route('/training/start', method='POST')
 def train_model():
     app.start_training()
+    return {'success': True}
+
+
+@route('/training/stop', method='POST')
+def train_model():
+    if app.is_training():
+        app.stop_training()
     return {'success': True}
 
 
@@ -76,8 +84,8 @@ def main(path=None):
     run(host='localhost', port=8080)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description = 'Say hello')
-    parser.add_argument('--config', help='your name, enter it')
+    parser = argparse.ArgumentParser(description = 'DeepPress')
+    parser.add_argument('--config', help='Config file path')
     args = parser.parse_args()
     main(args.config)
 

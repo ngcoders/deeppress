@@ -17,6 +17,10 @@ class DeepPressApp(object):
         if self.trainer:
             self.trainer.start()
 
+    def stop_training(self):
+        if self.trainer:
+            self.trainer.stop()
+
     def get_training_status(self):
         return self.trainer.status()
 

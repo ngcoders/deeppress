@@ -6,6 +6,9 @@ DEBUG = False
 # Minimum number of images required in training dataset
 MINIMUM_TRAIN_DATASET = 100
 
+# Path where trained models and data will be stored
+DATA_DIR = "dp"
+
 ####################
 # WordPress Config #
 ####################

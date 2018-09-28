@@ -33,8 +33,9 @@ tfh = TFLogHandler()
 tfl = logging.getLogger('tensorflow').addHandler(tfh)
 
 
-trained_models_path = 'trained_models'
-base_models_path = 'base_models'
+def ensure_path(path_name):
+    if not os.path.exists(path_name):
+        tf.gfile.MakeDirs(path_name)
 
 
 def get_valid_filename(s):
@@ -56,7 +57,8 @@ class TrainingJob(Process):
             "job": job
         }
         self.configs_dir = os.path.join(os.path.dirname(__file__), "configs")
-        self.train_dir = 'models/job_{}'.format(self.job['id'])
+        self.train_dir = '{}/job_{}'.format(config.TRAIN_DIR, self.job['id'])
+        ensure_path(self.train_dir)
         # If pipeline config file already there.
         self.already_running = os.path.isfile(os.path.join(self.train_dir, 'pipeline.config'))
 
@@ -99,7 +101,8 @@ class TrainingJob(Process):
                 api.update_model(_model['id'], {'file_name': file_name})
 
             self.model = _model
-            self.data_dir = "data/{}".format(_model['file_name'])
+            self.data_dir = os.path.join(config.DATASET_DIR, _model['file_name'])
+            ensure_path(self.data_dir)
         else:
             raise Exception("Model not found")
 
@@ -136,9 +139,8 @@ class TrainingJob(Process):
         def downloader(record):
             api.get_image_by_url(record['url'], "", record["path"])
 
-        self.data_dir = "data/{}".format(model['file_name'])
-        if not file_io.file_exists(self.data_dir):
-            file_io.recursive_create_dir(self.data_dir)
+        self.data_dir = os.path.join(config.DATASET_DIR, model['file_name'])
+        ensure_path(self.data_dir)
 
         labels_file = "{}/labels.pbtxt".format(self.data_dir)
 
@@ -158,9 +160,8 @@ class TrainingJob(Process):
                         if not bar:
                             bar = tqdm(total = res['total'])
                         trained_images = []
-                        images_folder = 'downloads'
-                        if not os.path.exists(images_folder):
-                            os.mkdir(images_folder)
+                        images_folder = config.DOWNLOADS_DIR
+                        ensure_path(images_folder)
                         if config.REMOTE_SERVER:
                             pool = api.BasePool(10)
                             pool.start(downloader)
@@ -245,9 +246,7 @@ class TrainingJob(Process):
         clone_on_cpu = False
         num_clones = 1
 
-        if not os.path.exists(base_models_path):
-            os.mkdir(base_models_path)
-
+        ensure_path(config.BASE_MODELS_PATH)
         train_dir = self.train_dir
         model_json_path = os.path.join(train_dir, 'job.json')
 
@@ -265,14 +264,14 @@ class TrainingJob(Process):
         job = api.update_job_state(job, 'training', 'Start training for {} steps'.format(num_steps))
 
         model = self.model
-
-        model_graph = os.path.join(config.TRAINED_MODEL_PATH, '{}.pb'.format(model['file_name']))
+        ensure_path(config.EXPORTED_MODELS)
+        model_graph = os.path.join(config.EXPORTED_MODELS, '{}.pb'.format(model['file_name']))
 
         if not os.path.exists(os.path.join(train_dir, 'checkpoint')):  # New training started
             _LOGGER.debug("Checkpoints doesn't exists")
 
-            base_checkpoints_path = os.path.join(base_models_path, model['architecture'])
-            _tmf = os.path.join(trained_models_path, model['file_name'])
+            base_checkpoints_path = os.path.join(config.BASE_MODELS_PATH, model['architecture'])
+            _tmf = os.path.join(config.TRAINED_MODEL_DATA, model['file_name'])
             if os.path.isdir(_tmf):
                 _LOGGER.debug("Model already exists as %s" % model_graph)
                 base_checkpoints_path = _tmf
@@ -284,7 +283,7 @@ class TrainingJob(Process):
                 if not parent_model:
                     raise Exception('Parent model not found on server')
 
-                parent_tmf = os.path.join(trained_models_path, parent_model['file_name'])
+                parent_tmf = os.path.join(config.TRAINED_MODEL_DATA, parent_model['file_name'])
                 if os.path.isdir(parent_tmf):
                     base_checkpoints_path = parent_tmf
                 else:
@@ -295,19 +294,19 @@ class TrainingJob(Process):
                 _LOGGER.debug("Base model not found for %s, Downloading now." % model['architecture'])
                 _f = api.download_model_files(model['architecture'])
 
+                tmp_model_data = os.path.join(config.DATA_DIR, 'tmp_model_data')
                 if tarfile.is_tarfile(_f):
-                    if os.path.exists('tmp_model_data'):
-                        shutil.rmtree('tmp_model_data')
-                    os.mkdir('tmp_model_data')
+                    if os.path.exists(tmp_model_data):
+                        shutil.rmtree(tmp_model_data)
+                    ensure_path(tmp_model_data)
                     print("Tar file found")
-                    shutil.unpack_archive(_f, 'tmp_model_data')
-                    for root, dirs, files in os.walk("tmp_model_data"):
+                    shutil.unpack_archive(_f, tmp_model_data)
+                    for root, dirs, files in os.walk(tmp_model_data):
                         for file in files:
                             if 'model.ckpt' in file:
                                 path = os.path.join(root, file)
                                 # print(path)
-                                if not os.path.exists(base_checkpoints_path):
-                                    os.mkdir(base_checkpoints_path)
+                                ensure_path(base_checkpoints_path)
                                 shutil.copy(path, os.path.join(base_checkpoints_path, file))
                 else:
                     _LOGGER.error("Invalid file")
@@ -477,7 +476,7 @@ class TrainingJob(Process):
             # Training complete. Export model
             _LOGGER.debug("Training complete for %d steps" % num_steps)
             job = api.update_job_state(job, 'training', 'Training complete')
-            export_path = os.path.join(trained_models_path, model['file_name'])
+            export_path = os.path.join(config.TRAINED_MODEL_DATA, model['file_name'])
             if os.path.exists(export_path):
                 shutil.rmtree(export_path)
             ckpt_path = os.path.join(train_dir, 'model.ckpt-{}'.format(num_steps))
@@ -489,7 +488,7 @@ class TrainingJob(Process):
                 shutil.copy(frozen_graph, model_graph)
                 shutil.copy(
                     os.path.join(train_dir, 'data', "labels.pbtxt"),
-                    os.path.join(config.TRAINED_MODEL_PATH, '{}.pbtxt'.format(model['file_name']))
+                    os.path.join(config.EXPORTED_MODELS, '{}.pbtxt'.format(model['file_name']))
                 )
                 # TODO: Eval the trained graph, Push the result to server.
                 eval_dir = 'eval_dir'

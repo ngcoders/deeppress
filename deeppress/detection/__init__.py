@@ -19,7 +19,7 @@ class DetectorModel:
 
         self.detection_graph = None
         self.category_index = None
-        self.trained_models_path = config.TRAINED_MODEL_PATH
+        self.exported_models_path = config.EXPORTED_MODELS
 
     def load(self, model):
         if self.model_file != model:
@@ -32,14 +32,14 @@ class DetectorModel:
 
     def load_labels(self):
         labels_file = "{}.pbtxt".format(self.model_file)
-        label_map = label_map_util.load_labelmap(os.path.join(self.trained_models_path, labels_file))
+        label_map = label_map_util.load_labelmap(os.path.join(self.exported_models_path, labels_file))
         categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=100, use_display_name=True)
         self.category_index = label_map_util.create_category_index(categories)
         print(self.category_index)
 
     def load_graph(self):
         logger.info("Loading graph %s" % self.graph_file)
-        model_path = os.path.join(self.trained_models_path, self.graph_file)
+        model_path = os.path.join(self.exported_models_path, self.graph_file)
         if not os.path.isfile(model_path):
             raise ModelNotFound(model_path)
         self.detection_graph = tf.Graph()
@@ -100,8 +100,8 @@ class DetectorModel:
             min_score_thresh=thresh,
             line_thickness=8)
 
-        imgpath = os.path.join("/work", "out_test.jpg")
-        cv2.imwrite(imgpath, img)
+        # imgpath = os.path.join("/work", "out_test.jpg")
+        # cv2.imwrite(imgpath, img)
 
         final_boxes = np.squeeze(boxes)
         final_score = np.squeeze(scores)

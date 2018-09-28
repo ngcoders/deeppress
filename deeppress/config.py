@@ -9,7 +9,7 @@ from werkzeug.datastructures import ImmutableDict
 DEFAULTS = {
     'DEBUG': False,
     'MINIMUM_TRAIN_DATASET': 10,
-    'TRAINED_MODEL_PATH': 'deeppress/trained_models',
+    'DATA_DIR': '~/deeppress',
     'WP_BASE_URL': "http://localhost",
     'REMOTE_SERVER': True,
     'WP_USERNAME': 'admin',
@@ -62,6 +62,14 @@ def _postprocess_config(data):
     data['WP_URL'] = "{}/wp-json/deeppress/v1/records".format(data['WP_BASE_URL'])
     # URL for models and groups
     data['WP_MODULES_URL'] = "{}/wp-json/deeppress/v1".format(data['WP_BASE_URL'])
+
+    data['TRAINED_MODELS_DATA'] = os.path.join(data['DATA_DIR'], 'trained_models')
+    data['BASE_MODELS_PATH'] = os.path.join(data['DATA_DIR'], 'base_models')
+    data['EVAL_DIR'] = os.path.join(data['DATA_DIR'], 'eval_dir')
+    data['EXPORTED_MODELS'] = os.path.join(data['DATA_DIR'], 'exported_models')
+    data['DATASET_DIR'] = os.path.join(data['DATA_DIR'], 'dataset')
+    data['TRAIN_DIR'] = os.path.join(data['DATA_DIR'], 'train')
+    data['DOWNLOADS_DIR'] = os.path.join(data['DATA_DIR'], 'downloads')
 
 
 def _sanitize_data(data, allow_internal=False):

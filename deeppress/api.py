@@ -1,4 +1,3 @@
-import requests
 import datetime
 import urllib.parse
 import json
@@ -6,13 +5,12 @@ import os
 import queue
 import threading
 import logging
-from tqdm import tqdm
+import requests
 
 from deeppress.config import config
 
 _LOGGER = logging.getLogger('deeppress.api')
 _LOGGER.setLevel(logging.DEBUG)
-# import tqdm
 
 # Range in data
 
