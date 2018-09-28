@@ -23,8 +23,7 @@ from deeppress import api
 from deeppress.image_to_tfr import TFRConverter
 from deeppress import exporter
 from deeppress.eval import run_eval
-from deeppress.config import REMOTE_SERVER, WP_BASE_URL, MINIMUM_TRAIN_DATASET, TRAINED_MODEL_PATH
-from deeppress import config
+from deeppress.config import config
 from deeppress.utils import TFLogHandler, StatusThread
 from deeppress import label_maker
 
@@ -162,13 +161,13 @@ class TrainingJob(Process):
                         images_folder = 'downloads'
                         if not os.path.exists(images_folder):
                             os.mkdir(images_folder)
-                        if REMOTE_SERVER:
+                        if config.REMOTE_SERVER:
                             pool = api.BasePool(10)
                             pool.start(downloader)
                             for image in images:
                                 url = image['image']
                                 if url.startswith('/wp-content'):
-                                    url = WP_BASE_URL + url
+                                    url = config.WP_BASE_URL + url
                                 image['image_file'] = os.path.join(images_folder, 'image_{}.jpeg'.format(image['id']))
 
                                 pool.add_task({"url": url, 'path': image['image_file']})
@@ -199,7 +198,7 @@ class TrainingJob(Process):
                             tf_converter.add_record(image_path, boxes)
 
                             # NOTE: Delete local image if downloaded from server
-                            if REMOTE_SERVER:
+                            if config.REMOTE_SERVER:
                                 if os.path.exists(image_path):
                                     os.remove(image_path)
 
@@ -220,7 +219,7 @@ class TrainingJob(Process):
             model = api.update_job_state(self.job, 'running', 'Preparing dataset complete')
 
             # TODO: Check for minimum requirements for train test data
-            if stats['train'] < MINIMUM_TRAIN_DATASET:
+            if stats['train'] < config.MINIMUM_TRAIN_DATASET:
                 _LOGGER.info("Minimum images required for training")
                 model = api.update_job_state(self.job, 'error', 'Dataset not enough for training')
                 return False
@@ -267,7 +266,7 @@ class TrainingJob(Process):
 
         model = self.model
 
-        model_graph = os.path.join(TRAINED_MODEL_PATH, '{}.pb'.format(model['file_name']))
+        model_graph = os.path.join(config.TRAINED_MODEL_PATH, '{}.pb'.format(model['file_name']))
 
         if not os.path.exists(os.path.join(train_dir, 'checkpoint')):  # New training started
             _LOGGER.debug("Checkpoints doesn't exists")
@@ -490,7 +489,7 @@ class TrainingJob(Process):
                 shutil.copy(frozen_graph, model_graph)
                 shutil.copy(
                     os.path.join(train_dir, 'data', "labels.pbtxt"),
-                    os.path.join(TRAINED_MODEL_PATH, '{}.pbtxt'.format(model['file_name']))
+                    os.path.join(config.TRAINED_MODEL_PATH, '{}.pbtxt'.format(model['file_name']))
                 )
                 # TODO: Eval the trained graph, Push the result to server.
                 eval_dir = 'eval_dir'

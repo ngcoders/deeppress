@@ -1,11 +1,12 @@
 import sys
 import logging
+import argparse
 
 # from trainer import TrainingApp
 from deeppress.app import DeepPressApp
 from deeppress.bottle import install, route, run, request, hook, response
 from deeppress.web import AuthPlugin
-import deeppress.config as config
+from deeppress.config import config, load_config, DeepPressConfig
 
 
 _LOGGER = logging.getLogger('deeppress')
@@ -18,8 +19,8 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(lineno)d - %(levelname
 ch.setFormatter(formatter)
 _LOGGER.addHandler(ch)
 
-install(AuthPlugin(config.LOCAL_AUTH_TOKEN))
-app = DeepPressApp()
+app = None
+
 
 @hook('after_request')
 def enable_cors():
@@ -62,6 +63,23 @@ def train_model():
     app.start_training()
     return {'success': True}
 
-run(host='localhost', port=8080)
+
+def main(path=None):
+    if path:
+        _LOGGER.info("Config path %s", path)
+
+    global app, config
+    object.__setattr__(config, '_config', load_config(path))
+    app = DeepPressApp()
+
+    install(AuthPlugin(config.LOCAL_AUTH_TOKEN))
+    run(host='localhost', port=8080)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = 'Say hello')
+    parser.add_argument('--config', help='your name, enter it')
+    args = parser.parse_args()
+    main(args.config)
+
 
 # app.run()

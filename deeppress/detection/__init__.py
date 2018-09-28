@@ -7,7 +7,7 @@ from object_detection.utils import visualization_utils as vis_util
 import os
 import logging
 from deeppress.app_exceptions import ModelNotFound
-from deeppress import config
+from deeppress.config import config
 
 logger = logging.getLogger('deeppress.detection')
 

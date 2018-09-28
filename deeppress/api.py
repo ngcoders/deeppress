@@ -8,9 +8,7 @@ import threading
 import logging
 from tqdm import tqdm
 
-from deeppress import config
-
-from deeppress.config import WP_MODULES_URL, WP_URL
+from deeppress.config import config
 
 _LOGGER = logging.getLogger('deeppress.api')
 _LOGGER.setLevel(logging.DEBUG)
@@ -70,7 +68,7 @@ def get_last_data(group, page=1, per_page=10, extra=None):
     :param page: int Page number
     :param per_page: int Items per page
     """
-    endpoint = WP_URL
+    endpoint = config.WP_URL
     params = {
         'group_id': group['group_id'],
         'page': page,
@@ -109,7 +107,7 @@ def upload_raw_image(group, _item):
     # created_at = t.isoformat(sep=' ')
 
     r = requests.post(
-        WP_URL, files={
+        config.WP_URL, files={
             'image': open(path, 'rb')
         },
         data={
@@ -157,7 +155,7 @@ def get_models(page=1, per_page=10, extra=None):
     :return: list of models
     """
 
-    endpoint = "{}/dp_models".format(WP_MODULES_URL)
+    endpoint = "{}/dp_models".format(config.WP_MODULES_URL)
 
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
@@ -169,7 +167,7 @@ def get_jobs(page=1, per_page=10, extra=None):
     :return: list of models
     """
 
-    endpoint = "{}/dp_jobs".format(WP_MODULES_URL)
+    endpoint = "{}/dp_jobs".format(config.WP_MODULES_URL)
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
 
@@ -180,7 +178,7 @@ def get_job(id):
     :return: list of models
     """
 
-    endpoint = "{}/dp_jobs/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_jobs/{}".format(config.WP_MODULES_URL, id)
     return get_module_records(endpoint)
 
 
@@ -192,7 +190,7 @@ def update_model(id, data):
     :param data: Data to update
     :return:
     """
-    endpoint = "{}/dp_models/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_models/{}".format(config.WP_MODULES_URL, id)
     print(endpoint)
     r = requests.post(
             endpoint,
@@ -209,7 +207,7 @@ def update_job(id, data):
     :param data: Data to update
     :return:
     """
-    endpoint = "{}/dp_jobs/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_jobs/{}".format(config.WP_MODULES_URL, id)
     r = requests.post(
             endpoint,
             auth=(config.WP_USERNAME, config.WP_PASSWORD),
@@ -240,7 +238,7 @@ def get_model(id):
     :param data: Data to update
     :return:
     """
-    endpoint = "{}/dp_models/{}".format(WP_MODULES_URL, id)
+    endpoint = "{}/dp_models/{}".format(config.WP_MODULES_URL, id)
     r = requests.get(endpoint, auth=(config.WP_USERNAME, config.WP_PASSWORD))
     _LOGGER.debug(r.text)
     return r.json()
@@ -286,7 +284,7 @@ def get_groups_list(page=1, per_page=10, extra=None):
     :param extra: Extra filters
     :return: List of groups
     """
-    endpoint = "{}/dp_groups".format(WP_MODULES_URL)
+    endpoint = "{}/dp_groups".format(config.WP_MODULES_URL)
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
 
@@ -404,7 +402,7 @@ def download_model_files(model_name):
 def mark_trained(ids):
     """Mark images as trained"""
     r = requests.post(
-            "{}/0/trained".format(WP_URL),
+            "{}/0/trained".format(config.WP_URL),
             data={
                 'ids[]': ids
             },
@@ -416,7 +414,7 @@ def mark_trained(ids):
 
 def get_classes(page=1, per_page=500, extra=None):
     """Get object classes"""
-    endpoint = "{}/dp_classes".format(WP_MODULES_URL)
+    endpoint = "{}/dp_classes".format(config.WP_MODULES_URL)
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
 if __name__ == "__main__":
