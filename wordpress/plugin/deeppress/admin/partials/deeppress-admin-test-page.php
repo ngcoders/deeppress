@@ -31,6 +31,19 @@
 	<div>
     <canvas id="canvas"></canvas>
 	</div>
+    <div>
+    <p>Response</p>
+    <div id="response" style="
+        display: block;
+        white-space: pre;
+        font-family: monospace;
+        background: #fff;
+        border-radius: 5px;
+        padding: 10px;
+    ">
+    
+    </div>
+    </div>
 </div>
 <script type="text/javascript" >
 var img, input, file;
@@ -109,7 +122,7 @@ var img, input, file;
         
         var fd = new FormData();
         fd.append("image", file);
-        fd.append("model", "ssd_inception_v2_coco_1");
+        fd.append("model", $("#model").val());
         fd.append("thresh", 0.25);
         $.ajax({
             url:"http://localhost:8080/detect", 
@@ -119,16 +132,21 @@ var img, input, file;
             contentType: false,
             success: function(data){
                 console.log(data);
+                $("#response").html(JSON.stringify(data, null, 2));
                 if(data.success){
                     var box = data.box;
                     var canvas = document.getElementById("canvas")
                     var ctx = canvas.getContext("2d");
                     for(var i = 0; i < box.length; i++){
                         ctx.beginPath();
-                        ctx.rect(box[i].x, box[i].y, box[i].width, box[i].height);
+                        var x= box[i].x, y = box[i].y; 
+                        ctx.rect(x, y, box[i].width, box[i].height);
                         ctx.lineWidth = 2;
                         ctx.strokeStyle = 'red';
                         ctx.stroke();
+                        ctx.font = '16px serif';
+                        ctx.textBaseline = 'top';
+                        ctx.strokeText(box[i].class, x, y);
                     }
                     
                 }

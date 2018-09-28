@@ -114,9 +114,17 @@ class DeepPress_Admin {
 
 	public function add_menu_page() {
 		$this->admin_page = add_menu_page(
-			"DeepPress Settings",
+			"DeepPress",
 			"DeepPress",
 			'edit_posts',
+			'deeppress',
+			array($this, 'menu_page')
+		);
+
+		add_submenu_page('deeppress',
+			'Detection',
+			'Detection',
+			'edit_others_posts',
 			'deeppress',
 			array($this, 'menu_page')
 		);
@@ -155,8 +163,16 @@ class DeepPress_Admin {
 			array($this, 'test_page')
 		);
 
+		add_submenu_page('deeppress',
+			'Settings',
+			'Settings',
+			'edit_others_posts',
+			'settings',
+			array($this, 'options_page')
+		);
+
 		add_action("load-{$this->admin_page}",array($this,'create_help_screen'));
-		add_options_page("DeepPress Settings", "DeepPress", 'manage_options', 'deeppress_options', array($this, 'options_page'));
+		// add_options_page("DeepPress Settings", "DeepPress", 'manage_options', 'deeppress_options', array($this, 'options_page'));
 	}
 
 	public function create_help_screen() {
@@ -834,7 +850,7 @@ class DeepPress_Admin {
 	                }
 	                foreach ($ids as $id) {
 	                    global $wpdb;
-		                $wpdb->delete( $wpdb->prefix . "dp_$module_name", array( 'id' => $id ) );
+		                $wpdb->delete( $wpdb->prefix . $module_name, array( 'id' => $id ) );
 	                }
 	            }
 	            if ( wp_get_referer() )
