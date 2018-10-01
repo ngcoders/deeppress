@@ -7,7 +7,7 @@ import requests
 
 from sklearn.metrics import confusion_matrix
 from glob import glob
-
+import logging
 import keras
 import tensorflow as tf
 config = tf.ConfigProto( device_count = {'GPU': 1} ) 
@@ -21,7 +21,7 @@ headers = {
     'Cache-Control': "no-cache",
     'Postman-Token': "36b03303-664a-4c86-aeda-0561d9799ac5"
     }
-
+_logger = logging.getLogger('backend.models')
 
 def get_data(endpoint):
     response = requests.request("GET", endpoint, headers=headers)
@@ -30,6 +30,7 @@ def get_data(endpoint):
 
 
 def get_model(model_id):
+    _logger.debug("getting model filename and architecture")
     result = get_data(url)
     for res in result['data']:
         id_ = int(res['id'])
@@ -39,6 +40,7 @@ def get_model(model_id):
     return filename, architecture
 
 def compile_model(architecture, categories_id):
+    _logger.debug("compiling model")
     nb_classes = len(categories_id)
     if architecture == 'InceptionV3':
        model, gen = inception(nb_classes)
@@ -234,7 +236,7 @@ def mobilenet(nb_classes):
     from keras.applications.mobilenet import MobileNet, preprocess_input
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
-    model = InceptionResNetV2(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
+    model = MobileNet(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     for layer in model.layers:
         layer.trainable = False
     x = Flatten()(model.output)
