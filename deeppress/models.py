@@ -30,6 +30,8 @@ def get_data(endpoint):
 
 
 def get_model(model_id):
+    """This function returns the file name (for building directory) and the model architecture (for compiling model) required for the job"""
+    
     _logger.debug("getting model filename and architecture")
     result = get_data(url)
     for res in result['data']:
@@ -40,6 +42,9 @@ def get_model(model_id):
     return filename, architecture
 
 def compile_model(architecture, categories_id):
+    """This function takes in architecture and list of categories as arguments to compile a model (Pre-trained on imagenet dataset)
+       with suitable output layer using the concept of transfer learning"""
+
     _logger.debug("compiling model")
     nb_classes = len(categories_id)
     if architecture == 'InceptionV3':

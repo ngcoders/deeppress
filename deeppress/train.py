@@ -23,6 +23,8 @@ batch_size = 16 #constrained to GPU capacity
 epochs = 100
 input_size=[100,100]
 def create_gens(train_path, gen):
+    """This function creates and returns the Image Data Generators for training and validation subsets as specified by Keras
+       to map the images with their category labels in order to be trained"""
     _logger.debug("Creating Data Generators")
     image_files = glob(train_path + '/*/*.jp*g')
     train_generator = gen.flow_from_directory(
@@ -44,6 +46,9 @@ def create_gens(train_path, gen):
 
 
 def start_training(model, train_generator, test_generator, image_files, filename):
+    """This function finally trains the classifier to classify the images according to the category labels found in the dataset.
+       After training is complete the trained model (.h5 file) is saved in the '/<filename>/model/' local directory and returns the 
+       performance measures such as training accuracy, training loss, validation accuracy and validation loss"""
     _logger.debug("Start Training")
     callbacks = [EarlyStopping(monitor='val_loss', min_delta=0, patience=5, verbose=0, mode='auto', baseline=None)]
     r = model.fit_generator(
@@ -59,9 +64,11 @@ def start_training(model, train_generator, test_generator, image_files, filename
     model_file = os.path.abspath(path + ('{}.h5'.format(filename)))
     model.save(model_file)
     #print("Trained model saved at {}".format(model_file))
-    return model_file, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
+    return r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
 
 def create_labels(cat_dict, filename, class_indices):
+    """This function creates a text file for the label mapping according to their class indices as determined by the Image Data Generators.
+       This label can be parsed for predictions over new images by parsing it by opening it as a json file"""
     _logger.debug("Mapping labels")
     label={}
     label['category']=[]

@@ -13,6 +13,8 @@ headers = {
     }
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 _logger = logging.getLogger('backend.dataset')
+
+
 def get_data(endpoint):
     response = requests.request("GET", endpoint, headers=headers)
     result = response.json()
@@ -20,6 +22,8 @@ def get_data(endpoint):
 
 
 def request_categories(categories):
+    """This function arranges the categories taken as argument (in the raw form)
+       in the form a dictionary with category ID as is keys so that dataset could be prepared"""
     _logger.debug("getting categories")
     result = get_data(url)
     categories_id = []
@@ -38,22 +42,31 @@ def request_categories(categories):
         cat_dict[categories_id[i]] = categories_name[i]
 
     return cat_dict, categories_id    
+    
 
 def prepare_dataset(categories_id, filename):
+    """This function prepares the dataset for all the categories and 
+       saves it in a local directory (/<filename>/dataset/) and returns the path of the dataset saved"""
     _logger.debug("preparing dataset on machine")
     path = '{}/dataset/'.format(filename)
     os.makedirs(path, exist_ok = True)
+    minimum_dataset = 50
+    i=0
     for category in categories_id:
         cat_url = url + "{}/images".format(category)
         result = get_data(cat_url)
         cat_path = path + '{}/'.format(category)
         os.makedirs(cat_path, exist_ok = True)
         for res in result['data']:
+            i += 1
             im_url = base_url + res
             response = requests.get(im_url)
             img = Image.open(BytesIO(response.content))
             img.save(cat_path + ('/{}.jpg'.format(res[-15:-4])))
-        print("category {} images saved".format(category))
+        if i > minimum_dataset:
+            print("category {} images saved".format(category))
+        else:
+            raise Exception("Images uploaded not enough for classification")
     print("complete dataset saved")
     return os.path.abspath(path)
 
