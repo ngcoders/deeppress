@@ -8,6 +8,7 @@ import threading
 
 from deeppress import api
 from deeppress.job import TrainingJob
+from deeppress.job import ClassificationJob
 
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -48,6 +49,12 @@ class TrainingApp(object):
                             self.current_job.start()
                             if join:
                                 self.current_job.join()
+                            return True
+                        else if record['model_type'] == 'classifier':
+                            self.cuurent_job = ClassificationJob(record)
+                            self.current_job.start()
+                            if join:
+                                self.current_job.join
                             return True
                         else:
                             _LOGGER.error('Training for model type %s not implemented' % record['model_type'])
