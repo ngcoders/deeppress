@@ -6,7 +6,10 @@ from predict import model_load, get_image, get_labels, predict_class
 import api
 import logging
 _logger = logging.getLogger('backend.main')
+
 class ClassificationJob(Process):
+    """start a new classification job"""
+    
     def __init__(self, job):
         """Start a new training Job"""
         super(ClassificationJob, self).__init__()
@@ -19,6 +22,7 @@ class ClassificationJob(Process):
             "ETA": None,
             "job": job
         }
+
     def run(self):
         model_id = self.job['model']
         categories = self.job['categories']
@@ -31,6 +35,7 @@ class ClassificationJob(Process):
         create_labels(cat_dict, filename, class_indices)
         api.update_job(self.job['id'], {'done' : 1, 'train_accuracy' : train_accuracy, 'train_loss' : train_loss, 'val_accuracy' : val_accuracy, 'val_loss' : val_loss})
  
+
 def predictor(img_url, filename):
     model = model_load(filename)
     img = get_image(img_url)
