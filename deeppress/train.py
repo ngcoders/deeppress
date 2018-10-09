@@ -10,6 +10,7 @@ from sklearn.metrics import confusion_matrix
 from glob import glob
 import os
 import keras
+import api
 import tensorflow as tf
 from deeppress.config import config
 config = tf.ConfigProto( device_count = {'GPU': 1} ) 
@@ -48,10 +49,14 @@ def create_gens(train_path, gen):
         subset = "training"
     )
     class_indices = train_generator.class_indices
-    return train_generator, test_generator, image_files, class_indices
+    if train_generator and test_generator:
+        return train_generator, test_generator, image_files, class_indices
+    else:
+        _logger.error("data generators invalid")
+        raise Exception("Unable to create data generators")
 
 
-def start_training(model, train_generator, test_generator, image_files, filename):
+def start_training(model, train_generator, test_generator, image_files, filename, job):
     """This function finally trains the classifier to classify the images according
     to the category labels found in the dataset. After training is complete the 
     trained model (.h5 file) is saved in the '/<filename>/model/' local directory
@@ -66,7 +71,7 @@ def start_training(model, train_generator, test_generator, image_files, filename
         verbose=0, 
         mode='auto', 
         baseline=None)]
-
+    model = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
     r = model.fit_generator(
         train_generator,
         validation_data=test_generator,
@@ -80,8 +85,7 @@ def start_training(model, train_generator, test_generator, image_files, filename
     model_file = os.path.abspath(path + ('{}.h5'.format(filename)))
     model.save(model_file)
     #print("Trained model saved at {}".format(model_file))
-    return r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], \
-           r.history['val_loss'][-1]
+    return r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
 
 
 def create_labels(cat_dict, filename, class_indices):

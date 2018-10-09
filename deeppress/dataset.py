@@ -4,20 +4,16 @@ import os
 from PIL import Image, ImageFile
 from io import BytesIO
 import logging
+import api
 from deeppress.config import config
 url = os.path.join(config.WP_MODULES_URL, "/classification")
 base_url = config.WP_BASE_URL
-headers = {
-    'Authorization': "Basic YWRtaW46YWRtaW4=",
-    'Cache-Control': "no-cache",
-    'Postman-Token': "88394bc2-67ae-4120-b4bb-d2d63b52424c"
-    }
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 _logger = logging.getLogger('backend.dataset')
 
 
 def get_data(endpoint):
-    response = requests.request("GET", endpoint, headers=headers)
+    response = requests.request("GET", endpoint, auth=(config.WP_USERNAME, config.WP_PASSWORD), timeout=10)
     result = response.json()
     return result
 
@@ -44,11 +40,14 @@ def request_categories(categories):
                 continue
     for i in range(0,len(categories_id)):
         cat_dict[categories_id[i]] = categories_name[i]
-
-    return cat_dict, categories_id    
+    if categories_id:
+        return cat_dict, categories_id    
+    else:
+        _logger.error("Categories not found")
+        raise Exception("Categories not found")
     
 
-def prepare_dataset(categories_id, filename):
+def prepare_dataset(categories_id, filename, job):
     """This function prepares the dataset for all the categories and saves it in
     a local directory (/<filename>/dataset/) and returns the path of the dataset 
     saved
@@ -69,12 +68,13 @@ def prepare_dataset(categories_id, filename):
             response = requests.get(im_url)
             img = Image.open(BytesIO(response.content))
             img.save(cat_path + ('/{}.jpg'.format(res[-15:-4])))
-        if img_count > config.MINIMUM_TRAIN_DATASET:
-            print("category {} images saved".format(category))
-        else:
-            raise Exception("Images uploaded not enough for classification")
-    print("complete dataset saved")
-    return os.path.abspath(path)
+    model = api.update_job_state(job, 'running', 'Preparing dataset complete')
+    if img_count < config.MINIMUM_TRAIN_DATASET:
+        model = api.update_job_state(job, 'error', 'Dataset not enough for training')
+        _logger.error("dataset small")
+        return False, []
+    else:
+        return True, os.path.abspath(path)
 
 
 #cat_dict, categories_id = request_categories()
