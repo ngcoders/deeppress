@@ -14,19 +14,12 @@ import tensorflow as tf
 configuration = tf.ConfigProto( device_count = {'GPU': 1} ) 
 sess = tf.Session(config=configuration) 
 keras.backend.set_session(sess)
-
 url = os.path.join(config.WP_MODULES_URL, "/dp_models")
-
-headers = {
-    'Authorization': "Basic YWRtaW46YWRtaW4=",
-    'Cache-Control': "no-cache",
-    'Postman-Token': "36b03303-664a-4c86-aeda-0561d9799ac5"
-    }
 _logger = logging.getLogger('backend.models')
 
 
 def get_data(endpoint):
-    response = requests.request("GET", endpoint, headers=headers)
+    response = requests.request("GET", endpoint, auth=(config.WP_USERNAME, config.PASSWORD), timeout=10)
     result = response.json()
     return result
 
@@ -43,12 +36,19 @@ def get_model(model_id):
         if id_ == model_id:
             filename = res['file_name']
             architecture = res['architecture']
-    return filename, architecture
+    
+    if filename and architecture:
+        return filename, architecture
+    else:
+        _logger.error("Invalid Model")
+        raise Exception("Model not found")
 
 
 def compile_model(architecture, categories_id):
     """This function takes in architecture and list of categories as arguments to
-    compile a model (Pre-trained on imagenet dataset) with suitable output layer using the concept of transfer learning"""
+    compile a model (Pre-trained on imagenet dataset) with suitable output layer 
+    using the concept of transfer learning
+    """
 
     _logger.debug("compiling model")
     nb_classes = len(categories_id)
@@ -86,17 +86,17 @@ def compile_model(architecture, categories_id):
         raise Exception('Invalid Model Selection')
 
 
-def inception(nb_classes):
-    from keras.applications.inception_v3 import InceptionV3, preprocess_input
-    K.clear_session()
-    input_tensor = Input(shape = (100,100,3))
-    model = InceptionV3(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
+def add_output_layers(model, nb_classes):
     for layer in model.layers:
         layer.trainable = False
     x = Flatten()(model.output)
     prediction = Dense(nb_classes, activation = 'softmax')(x)
     model_final = Model(inputs = model.input, outputs = prediction)
     model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
+    return model_final
+
+
+def gen_creator(preprocess_input):
     gen = ImageDataGenerator(
         featurewise_center=True, samplewise_center=True,
         rotation_range=20,
@@ -110,6 +110,16 @@ def inception(nb_classes):
         preprocessing_function=preprocess_input,
         validation_split = 0.8
     )
+    return gen
+
+
+def inception(nb_classes):
+    from keras.applications.inception_v3 import InceptionV3, preprocess_input
+    K.clear_session()
+    input_tensor = Input(shape = (100,100,3))
+    model = InceptionV3(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -118,25 +128,8 @@ def resnet(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = ResNet50(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -145,25 +138,8 @@ def vgg16(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = VGG16(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -172,25 +148,8 @@ def vgg19(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = VGG19(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -199,25 +158,8 @@ def xception(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = Xception(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -226,25 +168,8 @@ def inception_resnet(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = InceptionResNetV2(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -253,25 +178,8 @@ def mobilenet(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = MobileNet(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -280,25 +188,8 @@ def densenet(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = DenseNet121(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -307,25 +198,8 @@ def nasnet(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = NASNetMobile(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
@@ -334,25 +208,8 @@ def mobilenet_v2(nb_classes):
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     model = MobileNetV2(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
-    for layer in model.layers:
-        layer.trainable = False
-    x = Flatten()(model.output)
-    prediction = Dense(nb_classes, activation = 'softmax')(x)
-    model_final = Model(inputs = model.input, outputs = prediction)
-    model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
-    gen = ImageDataGenerator(
-        featurewise_center=True, samplewise_center=True,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True,
-        vertical_flip=True,
-        featurewise_std_normalization=True, samplewise_std_normalization=True,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.8
-    )
+    model_final = add_output_layers(model, nb_classes)
+    gen = gen_creator(preprocess_input)
     return model_final, gen
 
 
