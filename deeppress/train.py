@@ -13,8 +13,8 @@ import keras
 import api
 import tensorflow as tf
 from deeppress.config import config
-config = tf.ConfigProto( device_count = {'GPU': 1} ) 
-sess = tf.Session(config=config) 
+configuration = tf.ConfigProto( device_count = {'GPU': 1} ) 
+sess = tf.Session(config=configuration) 
 keras.backend.set_session(sess)
 from keras.callbacks import EarlyStopping
 import logging
@@ -34,26 +34,30 @@ def create_gens(train_path, gen):
 
     _logger.debug("Creating Data Generators")
     image_files = glob(train_path + '/*/*.jp*g')
-    train_generator = gen.flow_from_directory(
-        train_path,
-        target_size=input_size,
-        shuffle=True,
-        batch_size=batch_size,
-        subset = "validation"
-    )
-    test_generator = gen.flow_from_directory(
-        train_path,
-        target_size=input_size,
-        shuffle=True,
-        batch_size=batch_size,
-        subset = "training"
-    )
-    class_indices = train_generator.class_indices
-    if train_generator and test_generator:
-        return train_generator, test_generator, image_files, class_indices
-    else:
+    try:
+        train_generator = gen.flow_from_directory(
+            train_path,
+            target_size=input_size,
+            shuffle=True,
+            batch_size=batch_size,
+            subset = "validation"
+        )
+        test_generator = gen.flow_from_directory(
+            train_path,
+            target_size=input_size,
+            shuffle=True,
+            batch_size=batch_size,
+            subset = "training"
+        )
+        class_indices = train_generator.class_indices
+    except FileNotFoundError:
         _logger.error("data generators invalid")
-        raise Exception("Unable to create data generators")
+        print("Error : Unable to create data genrators")
+        train_generator = False
+        test_generator = False
+        image_files = False
+        class_indices= False
+    return train_generator, test_generator, image_files, class_indices
 
 
 def start_training(model, train_generator, test_generator, image_files, filename, job):
@@ -71,7 +75,7 @@ def start_training(model, train_generator, test_generator, image_files, filename
         verbose=0, 
         mode='auto', 
         baseline=None)]
-    model = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
+    state = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
     r = model.fit_generator(
         train_generator,
         validation_data=test_generator,
