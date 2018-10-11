@@ -8,7 +8,7 @@ import threading
 
 from deeppress import api
 from deeppress.job import TrainingJob
-from deeppress.job import ClassificationJob
+from deeppress.classifier_backend_main import ClassificationJob
 
 
 tf.logging.set_verbosity(tf.logging.INFO)
