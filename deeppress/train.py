@@ -33,7 +33,7 @@ def create_gens(train_path, gen):
     """
 
     _logger.debug("Creating Data Generators")
-    image_files = glob(train_path + '/*/*.jp*g')
+    image_files = glob(train_path + '/*.jp*g')
     try:
         train_generator = gen.flow_from_directory(
             train_path,
@@ -73,7 +73,7 @@ def start_training(model, train_generator, test_generator, image_files, filename
     if status == "Added":
         os.makedirs(path)
         callbacks = [ModelCheckpoint(
-            filepath = os.path.join(path, '{}tmp.h5'.format(filename)), 
+            filepath = os.path.join(path, '/{}tmp.h5'.format(filename)), 
             monitor='val_loss', 
             verbose=0, 
             save_best_only=False, 
@@ -100,9 +100,9 @@ def start_training(model, train_generator, test_generator, image_files, filename
             model.save(model_file)
             return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
     elif status == "incomplete":
-        model = load_model(os.path.join(path, '{}tmp.h5'.format(filename)))
+        model = load_model(os.path.join(path, '/{}tmp.h5'.format(filename)))
         callbacks = [ModelCheckpoint(
-            filepath = os.path.join(path, '{}tmp.h5'.format(filename)), 
+            filepath = os.path.join(path, '/{}tmp.h5'.format(filename)), 
             monitor='val_loss', 
             verbose=0, 
             save_best_only=False, 
