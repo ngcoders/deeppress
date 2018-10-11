@@ -28,6 +28,7 @@ class ClassificationJob(Process):
     def run(self):
         model_id = self.job['model']
         categories = self.job['categories']
+        status = self.job['status']
         filename, architecture = get_model(model_id)
         cat_dict, categories_id = request_categories(categories)
         flag, path = prepare_dataset(categories_id, filename, self.job)
@@ -35,19 +36,29 @@ class ClassificationJob(Process):
         if flag and model:
             train_generator, test_generator, image_files, class_indices = create_gens(path, gen)
             if train_generator and test_generator:
-                train_accuracy, train_loss, val_accuracy, val_loss = start_training(model, train_generator, test_generator, image_files, filename, self.job)
+                flag_, train_accuracy, train_loss, val_accuracy, val_loss = start_training(model, train_generator, test_generator, image_files, filename, self.job, status)
                 create_labels(cat_dict, filename, class_indices)
-                api.update_job(self.job['id'], 
-                {'done' : 1, 
-                'train_accuracy' : train_accuracy, 
-                'train_loss' : train_loss, 
-                'val_accuracy' : val_accuracy, 
-                'val_loss' : val_loss})
+                if flag_:
+                    api.update_job(self.job['id'],
+                    {'done' : 1,
+                    'status': 'complete', 
+                    'train_accuracy' : train_accuracy, 
+                    'train_loss' : train_loss, 
+                    'val_accuracy' : val_accuracy, 
+                    'val_loss' : val_loss})
+                else:
+                    api.update_job(self.job['id'], 
+                    {'done' : 0,
+                    'status': 'incomplete', 
+                    'train_accuracy' : train_accuracy, 
+                    'train_loss' : train_loss, 
+                    'val_accuracy' : val_accuracy, 
+                    'val_loss' : val_loss})
             else:
                 print("Error : Could not train model")
-                api.update_job(self.job['id'], {'done' : 0, 'remarks': "Could not train due to error"})
+                api.update_job(self.job['id'], {'done' : 0, 'status': 'invalid', 'remarks': "Could not train due to invalid generators"})
         else:
-            api.update_job(self.job['id'], {'done' : 0, 'remarks': "Could not train due to error"})
+            api.update_job(self.job['id'], {'done' : 0, 'status': 'invalid', 'remarks': "Could not train due to invalid model compilation"})
  
 
 def predictor(img_url, filename):
