@@ -24,7 +24,6 @@ def get_data(endpoint):
     if 'id' not in result['data'].keys():
         _logger.error("Invalid data")
         result = False
-        print("Error : Invalid data recieved")
     return result
 
 
@@ -45,7 +44,6 @@ def get_model(model_id):
         return filename, architecture
     else:
         _logger.error("Invalid Model")
-        print("Error : Model not found, Try")
         return False, False
 
 
@@ -91,7 +89,6 @@ def compile_model(architecture, categories_id):
         return model, gen
     else:
         _logger.error("Invalid Model Selected")
-        print("Error : Invalid Model Selected")
         return False, False
 
 def add_output_layers(model, nb_classes):
@@ -103,9 +100,8 @@ def add_output_layers(model, nb_classes):
     try:
         model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
         return model_final
-    except (ValueError, TypeError, NameError):
-        _logger.error("Model not compiled")
-        print("Error : Model could not be compiled")
+    except Exception as e:
+        _logger.error(e)
         return False
 
 
