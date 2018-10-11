@@ -50,7 +50,7 @@ class TrainingApp(object):
                             if join:
                                 self.current_job.join()
                             return True
-                        else if record['model_type'] == 'classifier':
+                        elif record['model_type'] == 'classifier':
                             self.cuurent_job = ClassificationJob(record)
                             self.current_job.start()
                             if join:
