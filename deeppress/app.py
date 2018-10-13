@@ -1,4 +1,4 @@
-from deeppress.detection import DetectorModel
+# from deeppress.detection import DetectorModel
 from deeppress.trainer import TrainingApp
 import cv2
 import numpy
@@ -6,7 +6,7 @@ import numpy
 class DeepPressApp(object):
     def __init__(self):
         self.training_job = None
-        self.detector = DetectorModel()
+        self.detector = None ##DetectorModel()
         self.mode_file = None
         self.trainer = TrainingApp()
 

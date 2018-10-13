@@ -1,16 +1,16 @@
 import json
-from keras.models import load_model
+
 import numpy as np
 import cv2
 import urllib.request
 from deeppress.config import config
 import os
-base_url = config.WP_BASE_URL
+
 
 
 def model_load(filename):
     """This function loads the .h5 model file for the filename argument"""
-
+    from keras.models import load_model
     model = load_model(os.path.join(config.TRAINED_MODELS_DATA, filename) + '/{}.h5'.format(filename))
     return model
 
@@ -19,7 +19,7 @@ def get_image(im_url):
     """This function fetches the image for the given path so that it can be 
     classified
     """
-
+    base_url = config.WP_BASE_URL
     url = base_url + im_url
     url_response = urllib.request.urlopen(url)
     img_array = np.array(bytearray(url_response.read()), dtype=np.uint8)

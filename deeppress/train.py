@@ -1,27 +1,20 @@
-from keras import backend as K
-from keras.models import Model, load_model
-from keras.preprocessing import image
-from keras.preprocessing.image import ImageDataGenerator
+
 import numpy as np
-import cv2
 import json
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
+#import matplotlib.pyplot as plt
+#from sklearn.metrics import confusion_matrix
 from glob import glob
 import os
-import keras
-import api
-import tensorflow as tf
+
+from deeppress import api
+
 from deeppress.config import config
-configuration = tf.ConfigProto( device_count = {'GPU': 1} ) 
-sess = tf.Session(config=configuration) 
-keras.backend.set_session(sess)
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+
 import logging
 
 _logger = logging.getLogger('backend.train')
 
-batch_size = 16 #constrained to GPU capacity
+batch_size = 1 #constrained to GPU capacity
 epochs = 20
 input_size=[100,100]
 
@@ -31,9 +24,8 @@ def create_gens(train_path, gen):
     and validation subsets as specified by Keras to map the images with their
     category labels in order to be trained
     """
-
     _logger.debug("Creating Data Generators")
-    image_files = glob(train_path + '/*.jp*g')
+    image_files = glob(train_path + '/*/*.jp*g')
     try:
         train_generator = gen.flow_from_directory(
             train_path,
@@ -59,21 +51,22 @@ def create_gens(train_path, gen):
     return train_generator, test_generator, image_files, class_indices
 
 
-def start_training(model, train_generator, test_generator, image_files, filename, job, status):
+def start_training(model, train_generator, test_generator, image_files, filename, job):
     """This function finally trains the classifier to classify the images according
     to the category labels found in the dataset. After training is complete the 
     trained model (.h5 file) is saved in the '/<filename>/model/' local directory
     and returns the performance measures such as training accuracy, training loss,
     validation accuracy and validation loss
     """
-
+    from keras.models import load_model
+    from keras.callbacks import ModelCheckpoint
     _logger.debug("Start Training")
     flag = 1
     path = os.path.join(config.TRAINED_MODELS_DATA, filename)
-    if status == "Added":
-        os.makedirs(path)
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
         callbacks = [ModelCheckpoint(
-            filepath = os.path.join(path, '/{}tmp.h5'.format(filename)), 
+            filepath = os.path.join(path, '{}tmp.h5'.format(filename)), 
             monitor='val_loss', 
             verbose=0, 
             save_best_only=False, 
@@ -81,54 +74,70 @@ def start_training(model, train_generator, test_generator, image_files, filename
             mode='auto', 
             period=1)]
         state = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
-        try:
+        history_acc = []
+        for i in range(1, epochs+1):
             r = model.fit_generator(
                 train_generator,
                 validation_data=test_generator,
-                epochs=epochs,
+                epochs=1,
                 callbacks = callbacks,
-                steps_per_epoch= (0.8 * len(image_files)) // batch_size,
-                validation_steps=(0.2 * len(image_files)) // batch_size,
+                steps_per_epoch= (0.8 * len(image_files)) / batch_size,
+                validation_steps=(0.2 * len(image_files)) / batch_size,
             )
-        except Exception:
+            history_acc.append(r.history['acc'][-1])
+            with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'w') as outfile:
+                outfile.write(str(i))
+        
+        if len(history_acc) < epochs:
+            flag = 0
+            return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
+        else:
+            model_file = os.path.join(path, ('{}.h5'.format(filename)))
+            model.save(model_file)
+            return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
+    else:
+        _logger.debug("Loading existing model file")
+        model_ = load_model(os.path.join(path, '{}tmp.h5'.format(filename)))
+        with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'r') as outfile:
+                last_epoch = int(outfile.read())
+        if not model == None:
+            callbacks = [ModelCheckpoint(
+                filepath = os.path.join(path, '{}tmp.h5'.format(filename)), 
+                monitor='val_loss', 
+                verbose=0, 
+                save_best_only=False, 
+                save_weights_only=False, 
+                mode='auto', 
+                period=1)]
+            state = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
+            history_acc = []
+            for i in range(1, (epochs+1)-last_epoch):
+                r = model_.fit_generator(
+                    train_generator,
+                    validation_data=test_generator,
+                    epochs=1,
+                    callbacks = callbacks,
+                    steps_per_epoch= (0.8 * len(image_files)) / batch_size,
+                    validation_steps=(0.2 * len(image_files)) / batch_size,
+                )
+                history_acc.append(r.history['acc'][-1])
+                with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'w') as outfile:
+                    outfile.write(str(i))
+
+        else:
+            _logger.error("model file missing")
             return False, False, False, False, False
-        if len(r.history['acc']) < epochs:
+        if len(history_acc) < epochs:
             flag = 0
             return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
         else:
-            model_file = os.path.join(path + ('{}.h5'.format(filename)))
-            model.save(model_file)
-            return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
-    elif status == "incomplete":
-        model = load_model(os.path.join(path, '/{}tmp.h5'.format(filename)))
-        callbacks = [ModelCheckpoint(
-            filepath = os.path.join(path, '/{}tmp.h5'.format(filename)), 
-            monitor='val_loss', 
-            verbose=0, 
-            save_best_only=False, 
-            save_weights_only=False, 
-            mode='auto', 
-            period=1)]
-        state = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
-        r = model.fit_generator(
-            train_generator,
-            validation_data=test_generator,
-            epochs=epochs,
-            callbacks = callbacks,
-            steps_per_epoch= (0.8 * len(image_files)) // batch_size,
-            validation_steps=(0.2 * len(image_files)) // batch_size,
-        )
-        if len(r.history['acc']) < epochs:
-            flag = 0
-            return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
-        else:
-            model_file = os.path.join(path + ('{}.h5'.format(filename)))
-            model.save(model_file)
+            model_file = os.path.join(path,('{}.h5'.format(filename)))
+            model_.save(model_file)
             return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
 
 
 
-def create_labels(cat_dict, filename, class_indices):
+def create_labels(filename, class_indices):
     """This function creates a text file for the label mapping according to their
     class indices as determined by the Image Data Generators. This label can be
     parsed for predictions over new images by parsing it by opening it as a json
@@ -138,14 +147,13 @@ def create_labels(cat_dict, filename, class_indices):
     _logger.debug("Mapping labels")
     label={}
     label['category']=[]
-    for key in cat_dict:
+    for key in class_indices:
         label['category'].append({
-            'id' : key,
-            'name' : cat_dict[key],
-            'index' : class_indices[str(key)]
+            'name' : key,
+            'index' : class_indices[key]
         })
     label_path = os.path.join(config.TRAINED_MODELS_DATA, filename)
-    with open((label_path + 'labels.txt'), 'w') as outfile:
+    with open(os.path.join(label_path, 'labels.txt'), 'w') as outfile:
         json.dump(label, outfile)
     return label_path
 

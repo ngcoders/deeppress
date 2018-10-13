@@ -4,10 +4,10 @@ import os
 from PIL import Image, ImageFile
 from io import BytesIO
 import logging
-import api
+from deeppress import api
 from deeppress.config import config
-url = os.path.join(config.WP_MODULES_URL, "/classification")
-base_url = config.WP_BASE_URL
+
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 _logger = logging.getLogger('backend.dataset')
 
@@ -26,37 +26,39 @@ def request_categories(categories):
     in the form a dictionary with category ID as is keys so that dataset could 
     be prepared
     """
-
+    url = config.WP_MODULES_URL + "/classification"
     _logger.debug("getting categories")
     result = get_data(url)
     categories_id = []
-    categories_name = []
+    categories_name_local = []
+    categories_name_global = []
     cat_dict = {}
     if result:
         for res in result['data']:
             cat_id = int(res['id'])
             cat_name = res['category']
             if cat_name in categories:
-                if cat_name not in categories_name:
-                    categories_id.append(cat_id)
-                    categories_name.append(cat_name)
-                else:
-                    continue
-        if len(categories_id) < 2:
+                categories_id.append(cat_id)
+                categories_name_local.append(cat_name)
+                if cat_name not in categories_name_global:
+                    categories_name_global.append(cat_name)
+            else:
+                continue
+        if len(categories_name_global) < 2:
             _logger.error("categories less than 2")
-            return False, False
+            return False, False, False
         elif categories_id == []:
             _logger.error("Categories not found")
-            return False, False       
+            return False, False, False       
         else:
             for i in range(0,len(categories_id)):
-                cat_dict[categories_id[i]] = categories_name[i]
-            return cat_dict, categories_id 
+                cat_dict[categories_id[i]] = categories_name_local[i]
+            return cat_dict, categories_id, categories_name_global 
     else:
-        return False, False
+        return False, False, False
     
 
-def prepare_dataset(categories_id, filename, job):
+def prepare_dataset(categories_id, filename, job, cat_dict):
     """This function prepares the dataset for all the categories and saves it in
     a local directory (/<filename>/dataset/) and returns the path of the dataset 
     saved
@@ -64,15 +66,17 @@ def prepare_dataset(categories_id, filename, job):
     
     _logger.debug("preparing dataset on machine")
     path = os.path.join(config.DATASET_DIR, filename)
+    base_url = config.WP_BASE_URL
+    url = config.WP_MODULES_URL + "/classification"
     os.makedirs(path, exist_ok = True)
     img_count=0
-    cat_count=0
+    cat_count=len(cat_dict.keys())
     for category in categories_id:
         cat_url = url + "/{}/images".format(category)
         result = get_data(cat_url)
         if result:
-            cat_count += 1
-            cat_path = path + '/{}'.format(category)
+            
+            cat_path = path + '/{}'.format(cat_dict[category])
             os.makedirs(cat_path, exist_ok = True)
             for res in result['data']:
                 img_count += 1

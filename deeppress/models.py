@@ -1,29 +1,22 @@
-from keras import backend as K
-from keras.models import Model
-from keras.layers import Input, Flatten, Dense
-from keras.preprocessing import image
-from keras.preprocessing.image import ImageDataGenerator
+
 import requests
 import os
 from deeppress.config import config
-from sklearn.metrics import confusion_matrix
+#from sklearn.metrics import confusion_matrix
 from glob import glob
 import logging
-import keras
-import tensorflow as tf
-configuration = tf.ConfigProto( device_count = {'GPU': 1} ) 
-sess = tf.Session(config=configuration) 
-keras.backend.set_session(sess)
-url = os.path.join(config.WP_MODULES_URL, "/dp_models")
+
+
+
 _logger = logging.getLogger('backend.models')
 
 
 def get_data(endpoint):
-    response = requests.request("GET", endpoint, auth=(config.WP_USERNAME, config.PASSWORD), timeout=10)
+    response = requests.get(endpoint, auth=(config.WP_USERNAME, config.WP_PASSWORD), timeout=10)
     result = response.json()
-    if 'id' not in result['data'].keys():
+    """if 'id' not in result['data'].keys():
         _logger.error("Invalid data")
-        result = False
+        result = False"""
     return result
 
 
@@ -31,14 +24,17 @@ def get_model(model_id):
     """This function returns the file name (for building directory) and the model
     architecture (for compiling model) required for the job
     """
-    
+
+    url = config.WP_MODULES_URL + "/dp_models"
     _logger.debug("getting model filename and architecture")
+    filename = False
+    architecture = False
     result = get_data(url)
     for res in result['data']:
         id_ = int(res['id'])
-        if id_ == model_id:
+        if id_ == int(model_id):
             filename = res['file_name']
-            architecture = res['architecture']
+            architecture = 'VGG16'
     
     if filename and architecture:
         return filename, architecture
@@ -47,14 +43,20 @@ def get_model(model_id):
         return False, False
 
 
-def compile_model(architecture, categories_id):
+def compile_model(architecture, categories_name):
     """This function takes in architecture and list of categories as arguments to
     compile a model (Pre-trained on imagenet dataset) with suitable output layer 
     using the concept of transfer learning
     """
-
+    from keras import backend as K
+    from keras.layers import Input
+    import keras
     _logger.debug("compiling model")
-    nb_classes = len(categories_id)
+    import tensorflow as tf
+    configuration = tf.ConfigProto( device_count = {'GPU': 1} ) 
+    sess = tf.Session(config=configuration) 
+    keras.backend.set_session(sess)
+    nb_classes = len(categories_name)
     K.clear_session()
     input_tensor = Input(shape = (100,100,3))
     if (architecture == 'InceptionV3'):
@@ -92,6 +94,8 @@ def compile_model(architecture, categories_id):
         return False, False
 
 def add_output_layers(model, nb_classes):
+    from keras.models import Model
+    from keras.layers import Flatten, Dense
     for layer in model.layers:
         layer.trainable = False
     x = Flatten()(model.output)
@@ -106,6 +110,7 @@ def add_output_layers(model, nb_classes):
 
 
 def gen_creator(preprocess_input):
+    from keras.preprocessing.image import ImageDataGenerator
     gen = ImageDataGenerator(
         featurewise_center=True, samplewise_center=True,
         rotation_range=20,
@@ -139,10 +144,11 @@ def resnet(nb_classes, input_tensor):
 
 
 def vgg16(nb_classes, input_tensor):
-    from keras.applications.vgg16 import VGG16, preprocess_input    
+    from keras.applications.vgg16 import VGG16, preprocess_input
     model = VGG16(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     model_final = add_output_layers(model, nb_classes)
     gen = gen_creator(preprocess_input)
+    model_final.summary()
     return model_final, gen
 
 
