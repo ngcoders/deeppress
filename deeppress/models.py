@@ -93,6 +93,7 @@ def compile_model(architecture, categories_name):
         _logger.error("Invalid Model Selected")
         return False, False
 
+
 def add_output_layers(model, nb_classes):
     from keras.models import Model
     from keras.layers import Flatten, Dense
@@ -148,7 +149,6 @@ def vgg16(nb_classes, input_tensor):
     model = VGG16(input_tensor = input_tensor, weights = 'imagenet', include_top = False)
     model_final = add_output_layers(model, nb_classes)
     gen = gen_creator(preprocess_input)
-    model_final.summary()
     return model_final, gen
 
 

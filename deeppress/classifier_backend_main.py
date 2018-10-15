@@ -7,6 +7,8 @@ from deeppress import api
 import logging
 import os
 import shutil
+import cv2
+import numpy as np
 _logger = logging.getLogger('backend.main')
 
 class ClassificationJob(Process):
@@ -30,18 +32,12 @@ class ClassificationJob(Process):
         model_id = self.job['model']
         categories = self.job['categories']
         filename, architecture = get_model(model_id)
-        print(filename, architecture)
         cat_dict, categories_id, categories_name = request_categories(categories)
-        print(cat_dict, categories_id)
         if categories_id:
             flag, path = prepare_dataset(categories_id, filename, self.job, cat_dict)
-            print(flag, path)
             model, gen = compile_model(architecture, categories_name)
-            #model.summary()
             if flag and model:
                 train_generator, test_generator, image_files, class_indices = create_gens(path, gen)
-                print('status')
-                print(filename)
                 if train_generator and test_generator:
                     flag_, train_accuracy, train_loss, val_accuracy, val_loss = start_training(model, train_generator, test_generator, image_files, filename, self.job)
                     create_labels(filename, class_indices)
@@ -66,10 +62,18 @@ class ClassificationJob(Process):
             api.update_job(self.job['id'], {'done' : 0, 'status': 'invalid', 'remarks': "Could not train as dataset or categories are not enough"})
  
 
-"""def predictor(img_url, filename):
-    model = model_load(filename)
-    img = get_image(img_url)
-    labels, names = get_labels(filename)
-    predicted_id, predicted_class, confidence = predict_class(img, model, labels, names)
-    return predicted_id, predicted_class, confidence
-"""
+def predictor(img, filename):
+    flag1, model = model_load(filename)
+    img = cv2.imdecode(np.fromstring(img, np.uint8), cv2.IMREAD_UNCHANGED)
+    img = cv2.resize(img,(100,100))
+    img = np.reshape(img, (1,100,100,3)) 
+    if model:
+        flag3, labels = get_labels(filename)
+        if flag3:
+            prediction = predict_class(img, model, labels)
+        else:
+            return False, False
+    else:
+        return False, False
+    return prediction
+

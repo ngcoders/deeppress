@@ -14,7 +14,7 @@ import logging
 
 _logger = logging.getLogger('backend.train')
 
-batch_size = 1 #constrained to GPU capacity
+batch_size = 8 #constrained to GPU capacity
 epochs = 20
 input_size=[100,100]
 
@@ -122,12 +122,12 @@ def start_training(model, train_generator, test_generator, image_files, filename
                 )
                 history_acc.append(r.history['acc'][-1])
                 with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'w') as outfile:
-                    outfile.write(str(i))
+                    outfile.write(str(i+last_epoch))
 
         else:
             _logger.error("model file missing")
             return False, False, False, False, False
-        if len(history_acc) < epochs:
+        if len(history_acc) < (epochs - last_epoch):
             flag = 0
             return flag, r.history['acc'][-1], r.history['loss'][-1], r.history['val_acc'][-1], r.history['val_loss'][-1]
         else:
