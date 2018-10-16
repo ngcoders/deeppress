@@ -65,6 +65,8 @@ class ClassificationJob(Process):
 def predictor(img, filename):
     flag1, model = model_load(filename)
     img = cv2.imdecode(np.fromstring(img, np.uint8), cv2.IMREAD_UNCHANGED)
+    if len(img.shape) > 2 and img.shape[2] == 4:
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     img = cv2.resize(img,(100,100))
     img = np.reshape(img, (1,100,100,3)) 
     if model:
