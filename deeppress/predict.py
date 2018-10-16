@@ -74,5 +74,5 @@ def predict_class(img, model, labels):
     confidence = p[0]
     final_predictions = {}
     for i in range(0,len(confidence)):
-        final_predictions[predicted_class[i]] = round(confidence[i].astype(float), 2)
+        final_predictions[predicted_class[i]] = float(format(confidence[i], '0.2f'))
     return final_predictions
