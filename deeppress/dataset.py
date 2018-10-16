@@ -83,7 +83,7 @@ def prepare_dataset(categories_id, filename, job, cat_dict):
                 im_url = base_url + res
                 response = requests.get(im_url)
                 try:
-                    img = Image.open(BytesIO(response.content))
+                    img = Image.open(BytesIO(response.content)).convert('RGB')
                     img.save(cat_path + ('/{}.jpg'.format(res[-15:-4])))
                 except OSError:
                     _logger.error("failed to download the image")
