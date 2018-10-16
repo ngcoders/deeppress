@@ -72,7 +72,7 @@ def start_training(model, train_generator, test_generator, image_files, filename
             save_best_only=False, 
             save_weights_only=False, 
             mode='auto', 
-            period=1)]
+            period=int(0.1 * epochs))]
         state = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
         history_acc = []
         for i in range(1, epochs+1):
@@ -100,7 +100,7 @@ def start_training(model, train_generator, test_generator, image_files, filename
         model_ = load_model(os.path.join(path, '{}tmp.h5'.format(filename)))
         with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'r') as outfile:
                 last_epoch = int(outfile.read())
-        if not model == None:
+        if not model_ == None:
             callbacks = [ModelCheckpoint(
                 filepath = os.path.join(path, '{}tmp.h5'.format(filename)), 
                 monitor='val_loss', 
@@ -108,22 +108,35 @@ def start_training(model, train_generator, test_generator, image_files, filename
                 save_best_only=False, 
                 save_weights_only=False, 
                 mode='auto', 
-                period=1)]
+                period=int(0.1 * epochs))]
             state = api.update_job_state(job, 'training', 'Start training for {} epochs'.format(epochs))
             history_acc = []
-            for i in range(1, (epochs+1)-last_epoch):
-                r = model_.fit_generator(
-                    train_generator,
-                    validation_data=test_generator,
-                    epochs=1,
-                    callbacks = callbacks,
-                    steps_per_epoch= (0.8 * len(image_files)) / batch_size,
-                    validation_steps=(0.2 * len(image_files)) / batch_size,
-                )
-                history_acc.append(r.history['acc'][-1])
-                with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'w') as outfile:
-                    outfile.write(str(i+last_epoch))
-
+            if last_epoch == 20:
+                for i in range(1, epochs+1):
+                    r = model_.fit_generator(
+                        train_generator,
+                        validation_data=test_generator,
+                        epochs=1,
+                        callbacks = callbacks,
+                        steps_per_epoch= (0.8 * len(image_files)) / batch_size,
+                        validation_steps=(0.2 * len(image_files)) / batch_size,
+                    )
+                    history_acc.append(r.history['acc'][-1])
+                    with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'w') as outfile:
+                        outfile.write(str(i))
+            else:
+                for i in range(1, (epochs+1)-last_epoch):
+                    r = model_.fit_generator(
+                        train_generator,
+                        validation_data=test_generator,
+                        epochs=1,
+                        callbacks = callbacks,
+                        steps_per_epoch= (0.8 * len(image_files)) / batch_size,
+                        validation_steps=(0.2 * len(image_files)) / batch_size,
+                    )
+                    history_acc.append(r.history['acc'][-1])
+                    with open(os.path.join(os.path.join(config.TRAINED_MODELS_DATA, filename), 'info.txt'), 'w') as outfile:
+                        outfile.write(str(i+last_epoch))
         else:
             _logger.error("model file missing")
             return False, False, False, False, False
