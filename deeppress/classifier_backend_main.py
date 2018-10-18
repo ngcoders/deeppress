@@ -1,15 +1,18 @@
 from multiprocessing import Process
+import logging
+import os
+import shutil
+
+import cv2
+import numpy as np
+
 from deeppress.models import get_model, compile_model
 from deeppress.dataset import request_categories, prepare_dataset
 from deeppress.train import create_gens, start_training, create_labels
 from deeppress.predict import model_load, get_image, get_labels, predict_class
 from deeppress import api
-import logging
-import os
-import shutil
-import cv2
-import numpy as np
-_logger = logging.getLogger('backend.main')
+
+_logger = logging.getLogger('deeppress.main')
 
 class ClassificationJob(Process):
     """start a new classification job"""
@@ -31,17 +34,18 @@ class ClassificationJob(Process):
     def run(self):
         model_id = self.job['model']
         categories = self.job['categories']
+        epochs = int(self.job['steps'])
         filename, architecture = get_model(model_id)
         cat_dict, categories_id, categories_name = request_categories(categories)
         if categories_id:
-            flag, path = prepare_dataset(categories_id, filename, self.job, cat_dict)
+            path = prepare_dataset(categories_id, filename, self.job, cat_dict)
             model, gen = compile_model(architecture, categories_name)
-            if flag and model:
+            if (not path == None) and (not model == None):
                 train_generator, test_generator, image_files, class_indices = create_gens(path, gen)
-                if train_generator and test_generator:
-                    flag_, train_accuracy, train_loss, val_accuracy, val_loss = start_training(model, train_generator, test_generator, image_files, filename, self.job)
+                if (not train_generator == None) and (not test_generator == None):
+                    training_complete, train_accuracy, train_loss, val_accuracy, val_loss = start_training(model, train_generator, test_generator, image_files, filename, self.job, epochs)
                     create_labels(filename, class_indices)
-                    if flag_:
+                    if training_complete:
                         api.update_job(self.job['id'],
                         {'done' : 1,
                         'status': 'complete', 
@@ -63,19 +67,22 @@ class ClassificationJob(Process):
  
 
 def predictor(img, filename):
-    flag1, model = model_load(filename)
+    model = model_load(filename)
     img = cv2.imdecode(np.fromstring(img, np.uint8), cv2.IMREAD_UNCHANGED)
-    if len(img.shape) > 2 and img.shape[2] == 4:
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-    img = cv2.resize(img,(100,100))
-    img = np.reshape(img, (1,100,100,3)) 
-    if model:
-        flag3, labels = get_labels(filename)
-        if flag3:
-            prediction = predict_class(img, model, labels)
-        else:
-            return False, False
+    if not isinstance(img, np.ndarray):
+        return False
     else:
-        return False, False
-    return prediction
+        if len(img.shape) > 2 and img.shape[2] == 4:
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        img = cv2.resize(img,(100,100))
+        img = np.reshape(img, (1,100,100,3)) 
+        if (not model == None):
+            labels = get_labels(filename)
+            if not labels == None:
+                prediction = predict_class(img, model, labels)
+            else:
+                return False
+        else:
+            return False
+        return prediction
 

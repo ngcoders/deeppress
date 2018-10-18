@@ -1,1 +1,1 @@
-print(format(0.9999999999, '0.2f'))
+print(list(range(1,1)))

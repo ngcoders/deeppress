@@ -1,22 +1,19 @@
-
-import requests
-import os
-from deeppress.config import config
-#from sklearn.metrics import confusion_matrix
 from glob import glob
 import logging
+import requests
+import os
 
+from deeppress.config import config
 
-
-_logger = logging.getLogger('backend.models')
+_logger = logging.getLogger('deeppress.models')
 
 
 def get_data(endpoint):
     response = requests.get(endpoint, auth=(config.WP_USERNAME, config.WP_PASSWORD), timeout=10)
     result = response.json()
-    """if 'id' not in result['data'].keys():
+    if isinstance(result['data'], dict) and 'id' not in result['data'].keys():
         _logger.error("Invalid data")
-        result = False"""
+        result = False
     return result
 
 
@@ -27,8 +24,8 @@ def get_model(model_id):
 
     url = config.WP_MODULES_URL + "/dp_models"
     _logger.debug("getting model filename and architecture")
-    filename = False
-    architecture = False
+    filename = None
+    architecture = None
     result = get_data(url)
     for res in result['data']:
         id_ = int(res['id'])
@@ -36,7 +33,7 @@ def get_model(model_id):
             filename = res['file_name']
             architecture = 'VGG16'
     
-    if filename and architecture:
+    if (not filename == None) and (not architecture == None):
         return filename, architecture
     else:
         _logger.error("Invalid Model")
@@ -48,16 +45,19 @@ def compile_model(architecture, categories_name):
     compile a model (Pre-trained on imagenet dataset) with suitable output layer 
     using the concept of transfer learning
     """
+
     from keras import backend as K
     from keras.layers import Input
     import keras
-    _logger.debug("compiling model")
     import tensorflow as tf
     configuration = tf.ConfigProto( device_count = {'GPU': 1} ) 
     sess = tf.Session(config=configuration) 
     keras.backend.set_session(sess)
     nb_classes = len(categories_name)
     K.clear_session()
+
+    _logger.debug("compiling model")
+
     input_tensor = Input(shape = (100,100,3))
     if (architecture == 'InceptionV3'):
         model, gen = inception(nb_classes, input_tensor)
@@ -91,7 +91,7 @@ def compile_model(architecture, categories_name):
         return model, gen
     else:
         _logger.error("Invalid Model Selected")
-        return False, False
+        return None, None
 
 
 def add_output_layers(model, nb_classes):
@@ -208,8 +208,5 @@ def mobilenet_v2(nb_classes, input_tensor):
     return model_final, gen
 
 
-#filename, architecture = get_model(1)
-#print(filename, architecture)
-#model, gen = compile_model('InceptionV3',[1,2])
-#print(model.summary())
+
 

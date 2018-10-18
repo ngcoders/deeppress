@@ -2,7 +2,7 @@ import sys
 import logging
 import argparse
 
-from trainer import TrainingApp
+
 from deeppress.app import DeepPressApp
 from deeppress.bottle import install, route, run, request, hook, response
 from deeppress.web import AuthPlugin
