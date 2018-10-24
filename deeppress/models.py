@@ -97,13 +97,15 @@ def compile_model(architecture, categories_name):
 def add_output_layers(model, nb_classes):
     from keras.models import Model
     from keras.layers import Flatten, Dense
+    from keras.optimizers import Adam
     for layer in model.layers:
         layer.trainable = False
     x = Flatten()(model.output)
     prediction = Dense(nb_classes, activation = 'softmax')(x)
     model_final = Model(inputs = model.input, outputs = prediction)
+    adam = Adam(lr=0.01, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     try:
-        model_final.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
+        model_final.compile(loss = 'categorical_crossentropy', optimizer = adam, metrics = ['accuracy'])
         return model_final
     except Exception as e:
         _logger.error(e)
