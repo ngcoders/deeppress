@@ -2,11 +2,12 @@ import sys
 import logging
 import argparse
 
-# from trainer import TrainingApp
+
 from deeppress.app import DeepPressApp
 from deeppress.bottle import install, route, run, request, hook, response
 from deeppress.web import AuthPlugin
 from deeppress.config import config, load_config, DeepPressConfig
+from deeppress.classifier_backend_main import predictor
 
 
 _LOGGER = logging.getLogger('deeppress')
@@ -33,12 +34,18 @@ def enable_cors():
     response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token'
 
 
-@route('/classify')
+@route('/classification', method='POST')
 def classify_image():
-    return "Not implemented yet"
+    filename = request.forms.get('model')
+    image = request.files.get('image')
+    prediction = predictor(image.file.read(), filename)
+    if not prediction == False:
+        return {'success': True, 'Predictions' : prediction}
+    else:
+        return {'success': False, 'error': 'Could not predict'}
 
 
-@route('/detect', method='POST')
+@route('/detection', method='POST')
 def detect_objects():
     model = request.forms.get('model')
     image = request.files.get('image')
@@ -81,7 +88,7 @@ def main(path=None):
     app = DeepPressApp()
 
     install(AuthPlugin(config.LOCAL_AUTH_TOKEN))
-    run(host='localhost', port=8080)
+    run(host='0.0.0.0', port=8080)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'DeepPress')

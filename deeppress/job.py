@@ -7,16 +7,17 @@ from tqdm import tqdm
 import json
 import tarfile
 import shutil
-import tensorflow as tf
-from tensorflow.python.lib.io import file_io
+
 from datetime import datetime
 import re
-
+import tensorflow as tf
+from tensorflow.python.lib.io import file_io
 from object_detection import trainer
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
 from object_detection.utils import config_util
+
 
 
 from deeppress import api

@@ -2,15 +2,17 @@ from __future__ import absolute_import
 
 import sys
 import logging
-import tensorflow as tf
+
 import time
 import threading
 
 from deeppress import api
-from deeppress.job import TrainingJob
 
-
+from deeppress.classifier_backend_main import ClassificationJob
+import tensorflow as tf
 tf.logging.set_verbosity(tf.logging.INFO)
+
+
 _LOGGER = logging.getLogger('deeppress.trainer')
 
 
@@ -20,6 +22,7 @@ class TrainingApp(object):
         self.current_job = None
 
     def start(self, join=False):
+        
         _LOGGER.debug("Getting models")
         page = 1
         while True:
@@ -44,10 +47,19 @@ class TrainingApp(object):
                             continue
 
                         if record['model_type'] == 'detector':
+                            from deeppress.job import TrainingJob
                             self.current_job = TrainingJob(record)
                             self.current_job.start()
                             if join:
                                 self.current_job.join()
+                            return True
+                        if record['model_type'] == 'classifier':
+                            self.current_job = ClassificationJob(record)
+                            _LOGGER.debug(record)
+                            self.current_job.start()
+                            if join:
+                                self.current_job.join
+                                _LOGGER.debug("Training complete")
                             return True
                         else:
                             _LOGGER.error('Training for model type %s not implemented' % record['model_type'])
