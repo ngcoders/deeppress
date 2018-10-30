@@ -14,6 +14,7 @@ from deeppress import api
 
 _logger = logging.getLogger('deeppress.main')
 
+
 class ClassificationJob(Process):
     """start a new classification job"""
     
@@ -29,6 +30,7 @@ class ClassificationJob(Process):
             "ETA": None,
             "job": job
         }
+
         
 
     def run(self):
@@ -85,4 +87,5 @@ def predictor(img, filename):
         else:
             return False
         return prediction
+
 

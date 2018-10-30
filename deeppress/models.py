@@ -1,3 +1,4 @@
+
 from glob import glob
 import logging
 import requests
@@ -18,6 +19,7 @@ def get_data(endpoint):
 
 
 def get_model(model_id):
+
     """This function returns the file name (for building directory) and the model
     architecture (for compiling model) required for the job
     """
@@ -98,11 +100,13 @@ def add_output_layers(model, nb_classes):
     from keras.models import Model
     from keras.layers import Flatten, Dense
     from keras.optimizers import Adam
+
     for layer in model.layers:
         layer.trainable = False
     x = Flatten()(model.output)
     prediction = Dense(nb_classes, activation = 'softmax')(x)
     model_final = Model(inputs = model.input, outputs = prediction)
+
     adam = Adam(lr=0.01, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     try:
         model_final.compile(loss = 'categorical_crossentropy', optimizer = adam, metrics = ['accuracy'])
@@ -208,7 +212,3 @@ def mobilenet_v2(nb_classes, input_tensor):
     model_final = add_output_layers(model, nb_classes)
     gen = gen_creator(preprocess_input)
     return model_final, gen
-
-
-
-

@@ -1,4 +1,5 @@
 import json
+
 import requests
 import os
 import logging
@@ -74,3 +75,4 @@ def predict_class(img, model, labels):
     for i in range(0,len(confidence)):
         final_predictions[predicted_class[i]] = float(format(confidence[i], '0.2f'))
     return final_predictions
+

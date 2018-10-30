@@ -27,11 +27,13 @@ def get_data(endpoint):
     if isinstance(result['data'], dict) and 'id' not in result['data'].keys():
         _logger.error("Invalid data")
         result = False
+
     return result
 
 
 def request_categories(categories):
     """This function arranges the categories taken as argument (in the raw form)
+
     in the form a dictionary with category ID as is keys so that dataset could 
     be prepared
     """
@@ -109,3 +111,4 @@ def prepare_dataset(categories_id, filename, job, cat_dict):
         return None
     else:
         return os.path.abspath(path)
+
