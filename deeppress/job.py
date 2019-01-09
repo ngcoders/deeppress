@@ -10,7 +10,13 @@ import shutil
 
 from datetime import datetime
 import re
-
+import tensorflow as tf
+from tensorflow.python.lib.io import file_io
+from object_detection import trainer
+from object_detection.builders import dataset_builder
+from object_detection.builders import graph_rewriter_builder
+from object_detection.builders import model_builder
+from object_detection.utils import config_util
 
 
 
@@ -56,13 +62,6 @@ class TrainingJob(Process):
         ensure_path(self.train_dir)
         # If pipeline config file already there.
         self.already_running = os.path.isfile(os.path.join(self.train_dir, 'pipeline.config'))
-        import tensorflow as tf
-        from tensorflow.python.lib.io import file_io
-        from object_detection import trainer
-        from object_detection.builders import dataset_builder
-        from object_detection.builders import graph_rewriter_builder
-        from object_detection.builders import model_builder
-        from object_detection.utils import config_util
 
     def get_status(self):
         return self.status
