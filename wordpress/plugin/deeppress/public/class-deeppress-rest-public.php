@@ -238,8 +238,8 @@ class DeepPress_Rest_Public
         $wpdb->show_errors();
         $data = array();
 
-        if (isset($_POST['count']))
-            $data['count'] = intval($_POST['count']);
+        /*if (isset($_POST['count']))
+            $data['count'] = intval($_POST['count']);*/
 
         if (isset($_POST['group_id']))
             $data['group_id'] = $_POST['group_id'];
@@ -247,17 +247,17 @@ class DeepPress_Rest_Public
         if (isset($_POST['created_at']))
             $data['created_at'] = $_POST['created_at'];
 
-	    if (isset($_POST['remarks']))
+        if (isset($_POST['box']))
+            $data['box'] = $_POST['box'];
+
+	    /*if (isset($_POST['remarks']))
 		    $data['remarks'] = $_POST['remarks'];
 
-	    if (isset($_POST['detections']))
-		    $data['detections'] = $_POST['detections'];
-
-	    if (isset($_POST['batt']))
-		    $data['batt'] = $_POST['batt'];
+        if (isset($_POST['batt']))
+            $data['batt'] = $_POST['batt'];
 
 	    if (isset($_POST['processed']))
-		    $data['processed'] = $_POST['processed'] == 0 ? false : true;
+		    $data['processed'] = $_POST['processed'] == 0 ? false : true;*/
 
         if (isset($_FILES['image'])) {
             $uploadedfile = $_FILES['image'];

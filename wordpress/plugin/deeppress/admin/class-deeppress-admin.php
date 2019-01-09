@@ -104,11 +104,23 @@ class DeepPress_Admin {
 			array( 'jquery' ),
 			$this->version, false
 		);
+		wp_enqueue_script(
+			$this->plugin_name.'-dropzone', plugin_dir_url( __FILE__ ) . 'js/dropzone.js',
+			array( 'jquery' ),
+			$this->version, false
+		);
+		// Localize the script with new data
+		$config_array = array(
+			'remote_url' => get_option('deeppress_remote_url'),
+			'remote_username' => get_option('deeppress_remote_username'),
+			'remote_password' => get_option('deeppress_remote_password')
+		);
+		wp_localize_script( $this->plugin_name, 'deeppress', $config_array );
 	}
 
 	public function admin_init_actions(){
 		// add_option( 'deeppress_remote_url', 'This is my option value.');
-   		register_setting( 'deeppress_options_group', 'deeppress_remote_url', 'myplugin_callback' );
+   		register_setting( 'deeppress_options_group', 'remote_url', 'myplugin_callback' );
 		$this->process_actions();
 	}
 
@@ -300,22 +312,23 @@ class DeepPress_Admin {
 	}
 
 	public function menu_page() {
-
-		$action = $_REQUEST['action'];
-		if ( !current_user_can( 'edit_posts' ) )  {
+	    if ( !current_user_can( 'edit_posts' ) )  {
 			wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
 		}
 
-		if ("create" === $action || "edit" === $action) {
-			$this->record_page('deeppress');
-			return;
-		} else if ("annotate" === $action && current_user_can( 'edit_posts' )) {
-			$this->show_annotate();
-			return;
-		} else if ("store" === $action || "update" === $action) {
-			do_action('deeppress_save_record');
-		}
-		
+		if (isset($_REQUEST['action'])) {
+            $action = $_REQUEST['action'];
+            if ("create" === $action || "edit" === $action) {
+                $this->record_page('deeppress');
+                return;
+            } else if ("annotate" === $action && current_user_can( 'edit_posts' )) {
+                $this->show_annotate();
+                return;
+            } else if ("store" === $action || "update" === $action) {
+                do_action('deeppress_save_record');
+            }
+        }
+
 		$this->list_records();	
 	}
 
@@ -348,17 +361,19 @@ class DeepPress_Admin {
 	 */
 	public function classification_page()
 	{
-		$action = $_REQUEST['action'];
 		if ( !current_user_can( 'edit_posts' ) )  {
 			wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
 		}
 
-		if ("create" === $action || "edit" === $action) {
-			$this->record_page('classification');
-			return;
-		} else if ("store" === $action || "update" === $action) {
-			$this->save_classification_record();
-		}
+        if (isset($_REQUEST['action'])) {
+            $action = $_REQUEST['action'];
+            if ("create" === $action || "edit" === $action) {
+                $this->record_page('classification');
+                return;
+            } else if ("store" === $action || "update" === $action) {
+                $this->save_classification_record();
+            }
+        }
 		
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-deeppress-admin-classification-table.php';
 		
@@ -628,7 +643,7 @@ class DeepPress_Admin {
 			<div class="wrap">
 				<h1 class="wp-heading-inline"><?php echo isset($record) ? "Edit" :"Add new" ?> Record</h1>
 	        <a href="<?php menu_page_url($current_page) ?>" class="page-title-action">Back</a>
-				<form id="deeppress-create-record" method="post" enctype="multipart/form-data" action="<?php menu_page_url($current_page) ?>">
+				<form id="deeppress-create-record" class="" method="post" enctype="multipart/form-data" action="<?php menu_page_url($current_page) ?>">
 					<input type="hidden" name="action" value="store">
 					<?php if (isset($record)) {
 						echo '<input type="hidden" name="id" value="'.$record['id'].'">';
@@ -636,22 +651,50 @@ class DeepPress_Admin {
 					if($current_page == 'deeppress'){
 					?>
 					<table class="form-table">
-						<tr>
-							<th scope="row"><label>Group ID</label>	</th>
-							<td>
-								<input type="text" name="group_id" value="<?php echo isset($record)?$record['group_id']:''; ?>">
-							</td>
-						</tr>
+						<?php 
+							$f = array(
+								'name'  =>  'group_id',
+								'type'  =>  'select',
+								'relative' =>  1,
+								'module'    =>  'dp_groups',
+								'placeholder'   =>  'Group',
+								'value'     =>  isset($record)?$record['group_id']:'common',
+								'choices'   => [],
+								'instructions'  =>  'Group name',
+								'foreign_key'   =>  'group_id'
+							);
+							$f = apply_filters('dp/load_field_defaults', $f);
+							if(isset($record)){
+								$f['value'] = $record[$f['name']];
+								if(isset($f['serialize']) && $f['serialize']) {
+									$f['value'] = unserialize( $f['value'] );
+								}
+							}
+		
+							$required_class = '';
+							$required_label = '';
+							if( $f['required'] )
+							{
+								$required_class = ' required';
+								$required_label = ' <span class="required">*</span>';
+							}
+							echo '<tr id="ba-' . $f['name'] . '" class="form-field field field_type-' . $f['type'] . $required_class . ' field_key-' . $f['key'] .' data-field_name="' . $f['name'] . '" data-field_key="' . $f['name'] . '" data-field_type="' . $f['type'] . '">';
+							echo '<th valign="top" scope="row"><label for="' . $f['name'] . '">' . $f['placeholder'] . $required_label . '</label></th>';
+							echo '<td>';
+							do_action('dp/create_field', $f );
+		
+							if($f['instructions']) echo '<p class="description">' . $f['instructions'] . '</p>';
+							echo '</td>';
+							echo '</tr>';
+						?>
 						<tr>
 							<th scope="row">
 								<label>Image</label>
 							</th>
 							<td>
-								<?php if (isset($record['image'])){
-									echo '<img src="'.$record['image'].'" height="100px" width="100px"/>';
-								} else {
+								<?php 
 									echo '<input type="file" name="image">';
-								}?>
+									?>
 							</td>
 						</tr>
 						<tr>

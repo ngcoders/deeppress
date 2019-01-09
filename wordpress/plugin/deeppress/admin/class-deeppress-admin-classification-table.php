@@ -68,6 +68,9 @@ class DeepPress_Classification_Table extends WP_List_Table {
     }
 
     public function listFolderFiles($dir){
+        if(is_null($dir)){
+            return 0;
+        }
         $ffs = scandir($dir);
         $total = 0;
         unset($ffs[array_search('.', $ffs, true)]);
@@ -227,6 +230,7 @@ class DeepPress_Classification_Table extends WP_List_Table {
      * @uses $this->set_pagination_args()
      **************************************************************************/
     function prepare_items() {
+        $_SERVER['REQUEST_URI'] = remove_query_arg( '_wp_http_referer', $_SERVER['REQUEST_URI'] );
         global $wpdb; 
 
         $per_page = 10;

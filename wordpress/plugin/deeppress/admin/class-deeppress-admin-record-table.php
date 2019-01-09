@@ -163,6 +163,7 @@ class DeepPress_List_Table extends WP_List_Table {
 	 * @uses $this->set_pagination_args()
 	 **************************************************************************/
 	function prepare_items() {
+		$_SERVER['REQUEST_URI'] = remove_query_arg( '_wp_http_referer', $_SERVER['REQUEST_URI'] );
 		global $wpdb;
 
 		$per_page = 10;

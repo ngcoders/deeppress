@@ -107,10 +107,10 @@ class dp_basic_functions
     function delete_classification_record($id){
         global $wpdb;
         $record = apply_filters('get_classification_record', $id);
-        if ( strpos($record['dir_path'], 'uploads') < strpos($record['dir_path'], $record['category'])) {
+        if ( $record['dir_path'] && strpos($record['dir_path'], 'uploads') < strpos($record['dir_path'], $record['category'])) {
             $this->rrmdir($record['dir_path']);
-		    $wpdb->delete( $wpdb->prefix . "deeppress_classification", array( 'id' => $id ) );
         }
+        $wpdb->delete( $wpdb->prefix . "deeppress_classification", array( 'id' => $id ) );
         
     }
 
