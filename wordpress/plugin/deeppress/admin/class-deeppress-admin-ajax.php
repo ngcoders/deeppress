@@ -25,7 +25,12 @@ class DeepPress_Admin_Ajax {
 
     public function get_models(){
 		global $wpdb;
-		$rows = $wpdb->get_results( "SELECT * FROM ". $wpdb->prefix . "dp_models LIMIT 100", ARRAY_A );
+		$type = $_POST['type'];
+		if($type === 'classification')
+			$type = 'classifier';
+		else
+			$type = 'detector';
+		$rows = $wpdb->get_results( "SELECT * FROM ". $wpdb->prefix . "dp_models WHERE model_type = '" . $type . "'LIMIT 100", ARRAY_A );
 		$response = array(
 			'what'=>'result',
 			'action'=>'get_models' . $_POST['model_type'],

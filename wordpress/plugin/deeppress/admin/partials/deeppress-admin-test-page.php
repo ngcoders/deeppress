@@ -59,7 +59,7 @@ var img, input, file;
                     var models = response.data;
                     $("#model").html("");
                     for(var i = 0; i < models.length; i++){
-                        $("#model").append('<option values="' + models[i].file_name + '">' + models[i].name + '</option>');
+                        $("#model").append('<option value="' + models[i].file_name + '">' + models[i].name + '</option>');
                     }                
             });
         }
@@ -124,8 +124,10 @@ var img, input, file;
         fd.append("image", file);
         fd.append("model", $("#model").val());
         fd.append("thresh", 0.25);
+        var action_type = $("#action-type").val();
+        $("#response").html("");
         $.ajax({
-            url:"http://localhost:8080/detect", 
+            url: deeppress.remote_url + "/" + action_type, 
             data:fd,
             type: 'POST',
             processData: false,
@@ -133,7 +135,7 @@ var img, input, file;
             success: function(data){
                 console.log(data);
                 $("#response").html(JSON.stringify(data, null, 2));
-                if(data.success){
+                if(data.success && action_type == 'detection'){
                     var box = data.box;
                     var canvas = document.getElementById("canvas")
                     var ctx = canvas.getContext("2d");
