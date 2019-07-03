@@ -4,7 +4,7 @@
  * Plugin URI: https://baseapp.com
  * Description: Deep-learning process automated. Manage models, annotate images automate training process.
  * Author: BaseApp Systems
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author URI: https://baseapp.com
  *
  */
