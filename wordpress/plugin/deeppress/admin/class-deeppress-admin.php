@@ -456,7 +456,7 @@ class DeepPress_Admin {
 		$record = $this->get_record($_REQUEST['id']);
         $next_id = intval($record['id']) - 1;
 		//var_dump($record);
-		$box = json_decode($record['box'], true);
+		$box = json_decode(preg_replace('/\\\\"/m', '"', $record['box']), true);
 		if (is_null($box)) {
 		    //echo $record['remarks'];
 			$json = preg_replace('/\\\\"/m', '"', $record['detections']);
