@@ -122,6 +122,7 @@ class DeepPress {
 		// Ajax
 		$plugin_ajax = new DeepPress_Admin_Ajax( $this->get_plugin_name(), $this->get_version() );
 		$this->loader->add_action( 'wp_ajax_dp_get_models', $plugin_ajax, 'get_models' );
+		$this->loader->add_action( 'wp_ajax_dp_start_training', $plugin_ajax, 'start_training' );
 	}
 
 	private function define_public_hooks() {

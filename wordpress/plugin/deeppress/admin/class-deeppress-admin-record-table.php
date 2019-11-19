@@ -144,6 +144,32 @@ class DeepPress_List_Table extends WP_List_Table {
 	protected function extra_tablenav( $which ) {
 		if ($which !== 'top')
 			return;
+
+		if ($this->module_name === 'dp_jobs') {?>
+			<div class="alignleft actions">
+				<a class="button" href="#" id="start-training-link">Start Training</a>
+				<script type="text/javascript" >
+					jQuery(document).ready(function($) {
+
+						$("#start-training-link").click(function(){
+							var data = {
+								'action': 'dp_start_training',
+								'data': {}
+							};
+							// since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
+							jQuery.post(ajaxurl, data, function(response) {
+								if(response.data && response.data.status && response.data.status == 200) {
+									alert('Training started.')
+								} else {
+									alert('Failed to start training. Please check the configurations.');
+								}
+								console.log(response)
+							});
+						})}
+					);
+				</script>
+			</div>
+		<?php }
 	}
 
 

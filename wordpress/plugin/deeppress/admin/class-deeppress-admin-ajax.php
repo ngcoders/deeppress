@@ -40,4 +40,22 @@ class DeepPress_Admin_Ajax {
 		wp_send_json($response);
 		wp_die();
     }
+
+    public function start_training(){
+        global $wpdb;
+        $args = array(
+            'headers' => array(
+                'Authorization' => 'Basic ' . base64_encode( get_option('deeppress_remote_username') . ':' . get_option('deeppress_remote_password') )
+            )
+        );
+        $response = wp_remote_post(get_option('deeppress_remote_url') . '/training/start', $args);
+        $response = array(
+            'what'=>'result',
+            'action'=>'start_training',
+            'data'=> ['status' => wp_remote_retrieve_response_code( $response )]
+        );
+        ob_clean();
+        wp_send_json($response);
+        wp_die();
+    }
 }
