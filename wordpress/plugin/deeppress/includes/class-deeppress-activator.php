@@ -110,7 +110,7 @@ class DeepPress_Activator {
 			case 'file':
 			case 'image':
 				if ($unique)
-					return 'VARCHAR(255)';
+					return 'VARCHAR(190)';
 				return 'TEXT';
 			case 'number':
 				return 'INT';
@@ -118,7 +118,7 @@ class DeepPress_Activator {
 				return 'BOOLEAN';
 			default:
 				if ($unique)
-					return 'VARCHAR(255)';
+					return 'VARCHAR(190)';
 				return 'TEXT';
 		}
 	}
