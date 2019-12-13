@@ -38,6 +38,7 @@
                 action: 'deeppress_save_annotation',
                 id: $("#record-id").val(),
                 box: areas,
+                <?php if(key_exists('group_id', $_REQUEST)){echo "group_id: '" . $_REQUEST['group_id'] . "',"; }?>
                 sub_action: $(e.target).data("action")
             };
             jQuery.post(ajaxurl, data, function(response) {

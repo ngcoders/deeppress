@@ -71,7 +71,7 @@ class DeepPress_List_Table extends WP_List_Table {
 	    $item['image'] = substr($item['image'], $pos);
 
         $actions = array(
-            'annotate'    => sprintf('<a href="?page=%s&action=%s&id=%s">Annotate</a>',$_REQUEST['page'],'annotate',$item['id']),
+            'annotate'    => sprintf('<a href="?page=%s&action=%s&id=%s&group_id=%s">Annotate</a>',$_REQUEST['page'],'annotate',$item['id'], key_exists('group_id', $_REQUEST) ? $_REQUEST['group_id'] : ''),
             'view'    => sprintf('<a href="%s" target="_blank">View</a>',$item['image']),
         );
 

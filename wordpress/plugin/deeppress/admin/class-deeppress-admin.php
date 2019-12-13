@@ -764,7 +764,11 @@ class DeepPress_Admin {
 
 			$next_row = array();
 			if (in_array($sub_action, ['skip', 'save-next', 'delete'])){
-				$next_row = $wpdb->get_row( "SELECT * FROM ". $wpdb->prefix . "deeppress WHERE annotated = False order BY RAND() LIMIT 1", ARRAY_A );
+			    $where = "";
+			    if (key_exists('group_id', $_POST) && !empty($_POST['group_id'])) {
+			        $where = "and group_id = '". $_POST['group_id'] . "'";
+                }
+				$next_row = $wpdb->get_row( "SELECT * FROM ". $wpdb->prefix . "deeppress WHERE annotated = False $where order BY RAND() LIMIT 1", ARRAY_A );
 				// $next_row = $wpdb->get_row( "SELECT * FROM ". $wpdb->prefix . "deeppress WHERE annotated = False and count > 0 order BY RAND() LIMIT 1", ARRAY_A );
 				$pos =  strpos($next_row['image'], "/wp-content");
 				$next_row['image'] = substr($next_row['image'], $pos);
