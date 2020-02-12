@@ -459,9 +459,9 @@ class DeepPress_Admin {
 		$box = json_decode(preg_replace('/\\\\"/m', '"', $record['box']), true);
 		if (is_null($box)) {
 		    //echo $record['remarks'];
-			$json = preg_replace('/\\\\"/m', '"', $record['detections']);
+			//$json = preg_replace('/\\\\"/m', '"', $record['detections']);
 		    //var_dump($json);
-			$box = json_decode($json, true);
+			//$box = json_decode($json, true);
 
 			//var_dump($box);
 			if (is_null($box)) {
@@ -771,7 +771,7 @@ class DeepPress_Admin {
 				$next_row = $wpdb->get_row( "SELECT * FROM ". $wpdb->prefix . "deeppress WHERE annotated = False $where order BY RAND() LIMIT 1", ARRAY_A );
 				// $next_row = $wpdb->get_row( "SELECT * FROM ". $wpdb->prefix . "deeppress WHERE annotated = False and count > 0 order BY RAND() LIMIT 1", ARRAY_A );
 				$pos =  strpos($next_row['image'], "/wp-content");
-				$next_row['image'] = substr($next_row['image'], $pos);
+				$next_row['image'] = get_site_url().substr($next_row['image'], $pos);
 				$next_row['detections'] = preg_replace('/\\\\"/m', '"', $next_row['detections']);
             }
 

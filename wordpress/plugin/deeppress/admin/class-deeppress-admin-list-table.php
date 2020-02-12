@@ -35,6 +35,7 @@ class DeepPress_List_Table extends WP_List_Table {
             case 'image':
                 return '<a href="'.$item[$column_name].'"><img src="'.$item[$column_name].'" height="100px" width="100px" class="annotatable"/></a>';
             case 'annotated':
+
                 $image = $item[$column_name] ? 'yes.png':'no.png';
                 if($item['annotated']) {
 	                $box = json_decode($item['box'], true);
@@ -72,12 +73,12 @@ class DeepPress_List_Table extends WP_List_Table {
 
         $actions = array(
             'annotate'    => sprintf('<a href="?page=%s&action=%s&id=%s&group_id=%s">Annotate</a>',$_REQUEST['page'],'annotate',$item['id'], key_exists('group_id', $_REQUEST) ? $_REQUEST['group_id'] : ''),
-            'view'    => sprintf('<a href="%s" target="_blank">View</a>',$item['image']),
+            'view'    => sprintf('<a href="%s" target="_blank">View</a>',get_site_url().$item['image']),
         );
 
         //Return the title contents
         return sprintf('%1$s %2$s',
-            /*$1%s*/ '<img src="'.$item['image'].'" height="100px" width="100px"/>',
+            /*$1%s*/ '<img src="'.get_site_url().$item['image'].'" height="100px" width="100px"/>',
             /*$3%s*/ $this->row_actions($actions)
         );
     }

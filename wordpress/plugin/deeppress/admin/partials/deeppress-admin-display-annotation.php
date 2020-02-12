@@ -11,7 +11,7 @@
 			<span id="result"></span>
 		</div>
 		<div class="annotatable-image-box">
-			<img src="<?php echo $record['image']; ?>" id="annotatable">
+			<img src="<?php echo get_site_url().$record['image']; ?>" id="annotatable">
 		</div>
 		<div id="result"></div>
 		<input type="hidden" id="record-id" value="<?php echo $record['id']; ?>">
