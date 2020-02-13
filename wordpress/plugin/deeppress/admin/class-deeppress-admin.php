@@ -104,11 +104,11 @@ class DeepPress_Admin {
 			array( 'jquery' ),
 			$this->version, false
 		);
-		wp_enqueue_script(
+		/*wp_enqueue_script(
 			$this->plugin_name.'-dropzone', plugin_dir_url( __FILE__ ) . 'js/dropzone.js',
 			array( 'jquery' ),
 			$this->version, false
-		);
+		);*/
 		// Localize the script with new data
 		$config_array = array(
 			'remote_url' => get_option('deeppress_remote_url'),
@@ -870,8 +870,16 @@ class DeepPress_Admin {
                         }
 		            }
 	            }
+
 	            $message = '10';
 	            global $wpdb;
+
+
+                if(isset($data['parent']) && ($data['parent']>0)) {
+                    $result = $wpdb->get_row( "SELECT * FROM ". $wpdb->prefix . "dp_models WHERE id = ".$data['parent'], ARRAY_A );
+                    $data['architecture'] = $result['architecture'];
+                }
+
 	            if ( isset( $_REQUEST['id'] ) ) {
 		            $result = $wpdb->update( $wpdb->prefix . $_REQUEST['page'], $data, array( 'id' => $_REQUEST['id'] ) );
 	                $message = '11';

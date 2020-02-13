@@ -555,6 +555,7 @@
         $objectClass.mousedown(pickSelection).bind("touchstart", pickSelection);
 
         $selectBox = $('<div>').insertAfter($objectClass);
+
         var $selectBoxInput = $('<select>');
         $.each(options.objectClassList, function(key, value) {
      		$selectBoxInput
@@ -562,6 +563,7 @@
                     .attr("value",value)
                     .text(value));
 		});
+
 		$selectBoxInput.bind("change", changeObjectClass);
         $selectBox.append($selectBoxInput);
 
