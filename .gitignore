@@ -37,6 +37,8 @@ ENV/
 env.bak/
 venv.bak/
 
-# Custom folders
+# Custom files and folders
 data
+test
 deeppress.conf
+nohup.out
