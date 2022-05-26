@@ -5,12 +5,12 @@ import tensorflow as tf
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
-from object_detection import evaluator
+# from object_detection import evaluator
 from object_detection.utils import config_util
 from object_detection.utils import label_map_util
 
 
-tf.logging.set_verbosity(tf.logging.INFO)
+# tf.logging.set_verbosity(tf.logging.INFO)
 
 # flags = tf.app.flags
 # flags.DEFINE_boolean('eval_training_data', False,
@@ -40,11 +40,11 @@ def run_eval(checkpoint_dir, eval_dir, pipeline_config_path, num_examples):
     run_once = False
     assert checkpoint_dir, '`checkpoint_dir` is missing.'
     assert eval_dir, '`eval_dir` is missing.'
-    tf.gfile.MakeDirs(eval_dir)
+    tf.io.gfile.makedirs(eval_dir)
     if pipeline_config_path:
         configs = config_util.get_configs_from_pipeline_file(
             pipeline_config_path)
-        tf.gfile.Copy(pipeline_config_path,
+        tf.io.gfile.Copy(pipeline_config_path,
                       os.path.join(eval_dir, 'pipeline.config'),
                       overwrite=True)
     else:

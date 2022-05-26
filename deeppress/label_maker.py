@@ -26,10 +26,9 @@ def make(filename):
         item.name = all_items[i]
         print("{}: {}".format(i+1, all_items[i]))
 
-    f = open(filename, "w")
-    f.write(text_format.MessageToString(label_map))
-    f.close()
-
+    with open(filename, 'w') as handle:
+        handle.write(text_format.MessageToString(label_map))
+    
     # label_map = label_map_util.load_labelmap(filename)
     # categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=100, use_display_name=False)
     # category_index = label_map_util.create_category_index(categories)

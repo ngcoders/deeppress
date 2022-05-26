@@ -22,7 +22,6 @@ wheels/
 *.egg
 MANIFEST
 
-
 # Sphinx documentation
 docs/_build/
 
@@ -37,3 +36,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Custom folders
+data
+deeppress.conf

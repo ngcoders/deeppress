@@ -7,12 +7,14 @@ from tqdm import tqdm
 import json
 import tarfile
 import shutil
+import subprocess
+import multiprocessing
 
 from datetime import datetime
 import re
 import tensorflow as tf
 from tensorflow.python.lib.io import file_io
-from object_detection import trainer
+# from object_detection import trainer
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
@@ -23,20 +25,29 @@ from object_detection.utils import config_util
 from deeppress import api
 from deeppress.image_to_tfr import TFRConverter
 from deeppress import exporter
-from deeppress.eval import run_eval
+# from deeppress.eval import run_eval
 from deeppress.config import config
 from deeppress.utils import TFLogHandler, StatusThread
 from deeppress import label_maker
 
-_LOGGER = logging.getLogger('deeppress.job')
-
+# _LOGGER = logging.getLogger('deeppress.job')
+# tfh = TFLogHandler()
+# tfl = logging.getLogger('tensorflow').addHandler(tfh)
 tfh = TFLogHandler()
-tfl = logging.getLogger('tensorflow').addHandler(tfh)
+tfl = logging.getLogger('tensorflow')
+tfl.setLevel(logging.INFO)
+formatter = logging.Formatter(fmt='%(levelname).1s %(asctime)s.%(msecs).03d: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+for h in tfl.handlers:
+    h.setFormatter(formatter)
+tfl.addHandler(tfh)
+_LOGGER = logging.getLogger('deeppress.job')
+tfl.addHandler(_LOGGER)
+tfl.propagate = False
 
 
 def ensure_path(path_name):
     if not os.path.exists(path_name):
-        tf.gfile.MakeDirs(path_name)
+        tf.io.gfile.makedirs(path_name)
 
 
 def get_valid_filename(s):
@@ -58,10 +69,13 @@ class TrainingJob(Process):
             "job": job
         }
         self.configs_dir = os.path.join(os.path.dirname(__file__), "configs")
-        self.train_dir = '{}/job_{}'.format(config.TRAIN_DIR, self.job['id'])
+        self.train_dir = f"{config.TRAIN_DIR}/job_{self.job['id']}"
         ensure_path(self.train_dir)
         # If pipeline config file already there.
         self.already_running = os.path.isfile(os.path.join(self.train_dir, 'pipeline.config'))
+        physical_devices = tf.config.list_physical_devices('GPU')
+        for gpu_instance in physical_devices: 
+            tf.config.experimental.set_memory_growth(gpu_instance, True)
 
     def get_status(self):
         return self.status
@@ -143,6 +157,7 @@ class TrainingJob(Process):
         self.data_dir = os.path.join(config.DATASET_DIR, model['file_name'])
         ensure_path(self.data_dir)
 
+        # TODO: find the right place for the labels file
         labels_file = "{}/labels.pbtxt".format(self.data_dir)
 
         label_maker.make(labels_file)
@@ -153,7 +168,8 @@ class TrainingJob(Process):
                 page = 1
                 bar = None
                 while True:
-                    res = api.get_last_data({'group_id': group}, extra={'annotated': 1, 'page': page, 'trained': 0})
+                    res = api.get_last_data({'group_id': group}, extra={'annotated': 1, 'page': page})
+                    # res = api.get_last_data({'group_id': group}, extra={'annotated': 1, 'page': page, 'trained': 0})
                     if isinstance(res, dict) and 'data' in res.keys():
                         images = res['data']
                         if len(images) == 0:  # No more images to download
@@ -206,7 +222,7 @@ class TrainingJob(Process):
 
                         api.mark_trained(trained_images)
                         trained_images = []
-                        # page += 1
+                        page += 1
                     else:
                         _LOGGER.error("Invalid response from server")
                         break
@@ -240,8 +256,162 @@ class TrainingJob(Process):
         else:
             return None
 
+    def create_checkpoint(self, job):
+        if os.path.exists(os.path.join(self.train_dir, 'ckpt-*')):
+            # model already exists
+            # TODO: job['checkpoint'] should point to a model than a folder
+            _LOGGER.info('A checkpoint already exists. Fine tuning')
+            job['checkpoint'] = self.train_dir
+            return
+        
+        _LOGGER.info('A checkpoint does not exist. Starting from a base model')
+        job['checkpoint'] = os.path.join(config.BASE_MODELS_PATH, self.model['architecture'], 'checkpoint', 'ckpt-0')
+        return
+
+    def edit_pipeline(self, job, model, counts):
+        train_dir = self.train_dir
+        base_model_pipeline = os.path.join(config.BASE_MODELS_PATH, self.model['architecture'], 'pipeline.config')
+        pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
+        if os.path.exists(base_model_pipeline):
+            shutil.copyfile(base_model_pipeline, pipeline_config_path)
+        if not os.path.exists(pipeline_config_path):
+            pipeline_config_path = os.path.join(self.configs_dir, model['architecture'], 'pipeline.config')
+            # pipeline_config_path = os.path.join(self.configs_dir, f"{model['architecture']}.config")
+
+        task = '0'
+        if task == '0':
+            tf.io.gfile.makedirs(train_dir)
+        if pipeline_config_path:
+            _LOGGER.info(f"Pipeline config file : {pipeline_config_path}")
+            configs = config_util.get_configs_from_pipeline_file(
+                pipeline_config_path)
+            if task == '0':
+                tf.io.gfile.copy(pipeline_config_path,
+                              os.path.join(train_dir, 'pipeline.config'),
+                              overwrite=True)
+        else:
+            _LOGGER.error("No config found")
+            return False
+
+        pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
+        job['pipeline_config_path'] = pipeline_config_path
+
+        # with open(model_json_path, 'w') as mf:
+        #     json.dump(job, mf)
+
+        model_config = configs['model']
+        train_config = configs['train_config']
+        input_config = configs['train_input_config']
+
+
+        if model_config.HasField('faster_rcnn'):
+            model_config.faster_rcnn.num_classes = counts['classes']
+            model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = 640
+            model_config.faster_rcnn.image_resizer.fixed_shape_resizer.width = 640
+
+        if model_config.HasField('ssd'):
+            model_config.ssd.num_classes = counts['classes']
+
+        # Set num_steps
+        train_config.num_steps = int(job['steps'])
+        train_config.batch_size = job.get('batch_size', 2)
+        train_config.fine_tune_checkpoint = job['checkpoint']
+        train_config.fine_tune_checkpoint_type = 'detection'
+
+        # Update input config to use updated list of input
+        input_config.tf_record_input_reader.ClearField('input_path')
+        input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "train_baheads.tfrecord-*"))
+        input_config.label_map_path = os.path.join(train_dir, 'data', "labels.pbtxt")
+
+        eval_config = configs['eval_config']
+        eval_input_config = configs['eval_input_configs']
+
+        eval_config.num_examples = counts['test']
+        eval_config.max_evals = 1
+
+        # # Update input config to use updated list of input
+        # eval_input_config.tf_record_input_reader.ClearField('input_path')
+        # eval_input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "test_baheads.tfrecord-*"))
+        # eval_input_config.label_map_path = os.path.join(train_dir, 'data', "labels.pbtxt")
+
+        # Save the updated config to pipeline file
+        config_util.save_pipeline_config(config_util.create_pipeline_proto_from_configs({
+            'model': model_config,
+            'train_config': train_config,
+            'train_input_config': input_config,
+            'eval_config': eval_config,
+            'eval_input_configs': eval_input_config
+
+        }), train_dir)
+        return True
+
+    def _train(self, model_dir, pipeline_config_path, num_train_steps, evalStep):
+        # print('***** \n\n\n _train start 0 \n\n\n***')
+        # # strategy = tf.compat.v2.distribute.experimental.CentralStorageStrategy()
+        # strategy = tf.compat.v2.distribute.MirroredStrategy()
+        # print('***** \n\n\n _train start \n\n\n***')
+        # with strategy.scope():
+        #     model_lib_v2.train_loop(
+        #         pipeline_config_path=pipeline_config_path,
+        #         model_dir=model_dir,
+        #         train_steps=num_train_steps,
+        #         use_tpu=False,
+        #         checkpoint_every_n=evalStep,
+        #         record_summaries=True)
+        # print('***** \n\n\n _train end \n\n\n***')
+        command = [
+            'python3',
+            '/tensorflow/models/research/object_detection/model_main_tf2.py',
+            '--model_dir={}'.format(model_dir),
+            '--num_train_steps={}'.format(num_train_steps),
+            '--sample_1_of_n_eval_examples={}'.format(1),
+            '--pipeline_config_path={}'.format(pipeline_config_path),
+            '--checkpoint_every_n={}'.format(evalStep),
+            '--alsologtostderr',
+        ]
+        _LOGGER.debug('executing the command: ')
+        [_LOGGER.debug(f'{line}') for line in command]
+        result = subprocess.run(command, stdout=subprocess.PIPE)
+        _LOGGER.info(str(result.stdout, 'UTF-8'))
+
+    def _start_training(self, job, train_dir):
+        '''
+        params:
+            job: the details of the current training
+            fn_update_failure: function to update failure, if encountered
+            fn_update_info: update information (as text)
+            fn_update_train_info: update training information such as steps, loss etc
+        '''
+        # status_timer = StatusThread(handler=tfh, num_steps=job['endStep'], job=job, info=info, fn_update_info=fn_update_train_info)
+        # status_timer.start()
+        _LOGGER.info(f'self.train_dir: {self.train_dir}')
+        for k, v in job.items():
+            print(f'{k}: {v}')
+        try:
+            self._train(self.train_dir, job['pipeline_config_path'], job['steps'], job.get('evalStep', 5000))
+        except KeyboardInterrupt:
+            # directly updated only during a KeyboardInterrupt. rest are handled elsewhere
+            # fn_update_info('Aborted. User terminated the training process.')
+            # fn_update_failure()
+            raise
+        finally:
+            # status_timer.stop()
+            # if status_timer.is_alive():
+            #     _LOGGER.info('Waiting for status thread to close')
+            #     status_timer.join()
+            #     _LOGGER.info('Status thread closed successfully')
+            _LOGGER.info('Training Stopped')
+
+
     def start_training(self):
         """Start training for the model"""
+        '''
+        {'id': '27', 'model': '3', 'model_type': 'detector', 'groups': ['newdata'], 'categories': False, 'steps': '50000', 
+        'status': 'error', 'state': 'added', 'done': False, 
+        'remarks': '2022-05-24 10:27:57 | Preparing dataset complete \n2022-05-24 10:27:57 | Dataset:- Train : 1193, Test : 293 \n2022-05-24 09:33:51 | Dataset not enough for training <br />\n2022-05-24 09:33:51 | Preparing dataset complete <br />\n2022-05-24 09:33:51 | Dataset:- Train : 0, Test : 0 <br />\n2022-05-24 09:26:20 | Dataset not enough for training &lt;br /&gt;<br />\n2022-05-24 09:26:20 | Preparing dataset complete &lt;br /&gt;<br />\n2022-05-24 09:26:20 | Dataset:- Train : 0, Test : 0 &lt;br /&gt;<br />\n2022-05-24 09:24:47 | Dataset not enough for training ', 
+        'created_at': '2022-05-09 04:45:41', 'updated_at': '2022-05-24 05:33:51'}
+        '''
+
         worker_replicas = 1
         ps_tasks = 0
         clone_on_cpu = False
@@ -262,12 +432,13 @@ class TrainingJob(Process):
         except Exception as e:
             _LOGGER.error(e)
 
-        job = api.update_job_state(job, 'training', 'Start training for {} steps'.format(num_steps))
+        job = api.update_job_state(job, 'training', f'Start training for {num_steps} steps')
 
         model = self.model
+        model['architecture'] = 'faster_rcnn_inception_resnet_v2_640x640_coco17_tpu-8'
         ensure_path(config.EXPORTED_MODELS)
-        model_graph = os.path.join(config.EXPORTED_MODELS, '{}.pb'.format(model['file_name']))
-
+        model_graph = os.path.join(config.EXPORTED_MODELS, f"{model['file_name']}.pb")
+        '''
         if not os.path.exists(os.path.join(train_dir, 'checkpoint')):  # New training started
             _LOGGER.debug("Checkpoints doesn't exists")
 
@@ -318,10 +489,10 @@ class TrainingJob(Process):
             if os.path.exists(os.path.join(train_dir, 'checkpoint')):
                 os.remove(os.path.join(train_dir, 'checkpoint'))
 
+        '''
         if os.path.exists(os.path.join(train_dir, 'data')):
             shutil.rmtree(os.path.join(train_dir, 'data'))
         shutil.copytree(self.data_dir, os.path.join(train_dir, 'data'))
-
         counts = {'train': 0, 'test': 1000, 'classes': 1}
         stats_file = os.path.join(train_dir, "data", "stats.json")
         try:
@@ -330,18 +501,24 @@ class TrainingJob(Process):
         except:
             pass
 
+        self.create_checkpoint(job)
+        if not self.edit_pipeline(job, model, counts):
+            _LOGGER.error('edit_pipeline failed')
+            return False
+        self._start_training(job, train_dir)
+        '''
         pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
         if not os.path.exists(pipeline_config_path):
             pipeline_config_path = os.path.join(self.configs_dir, "{}.config".format(model['architecture']))
         task = '0'
         if task == '0':
-            tf.gfile.MakeDirs(train_dir)
+            tf.io.gfile.makedirs(train_dir)
         if pipeline_config_path:
             _LOGGER.info("Pipeline config file : {}".format(pipeline_config_path))
             configs = config_util.get_configs_from_pipeline_file(
                 pipeline_config_path)
             if task == '0':
-                tf.gfile.Copy(pipeline_config_path,
+                tf.io.gfile.Copy(pipeline_config_path,
                               os.path.join(train_dir, 'pipeline.config'),
                               overwrite=True)
         else:
@@ -494,7 +671,7 @@ class TrainingJob(Process):
                 # TODO: Eval the trained graph, Push the result to server.
                 eval_dir = 'eval_dir'
                 tf.reset_default_graph()
-                eval_result = run_eval(train_dir, eval_dir, pipeline_config_path, counts['test'])
+                # eval_result = run_eval(train_dir, eval_dir, pipeline_config_path, counts['test'])
                 if 'PascalBoxes_Precision/mAP@0.5IOU' in eval_result:
                     acc = eval_result['PascalBoxes_Precision/mAP@0.5IOU'] * 100
                     _LOGGER.info("PascalBoxes_Precision/mAP@0.5IOU : %d %%" % (acc))
@@ -503,5 +680,5 @@ class TrainingJob(Process):
                 if os.path.exists(train_dir):
                     shutil.rmtree(train_dir)
                 return True
-
+        '''
         return False

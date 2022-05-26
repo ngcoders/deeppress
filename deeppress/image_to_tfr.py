@@ -21,13 +21,13 @@ class TFRConverter:
     """
 
     def __init__(self, file_name, labels_file=False):
-        time_str = datetime.now().strftime("%d%H%M")
+        time_str = datetime.now().strftime('%y%m%d_%H%M%S')
         if not os.path.isdir(file_name):
             os.mkdir(file_name)
         self.data_dir = file_name
-        self.train_set = "{}/train_baheads.tfrecord-{}".format(file_name, time_str)
-        self.test_set = "{}/test_baheads.tfrecord-{}".format(file_name, time_str)
-        self.stats_file = "{}/stats.json".format(file_name)
+        self.train_set = f'{file_name}/train_baheads.tfrecord-{time_str}'
+        self.test_set = f'{file_name}/test_baheads.tfrecord-{time_str}'
+        self.stats_file = f'{file_name}/stats.json'
         self.train_count = 0
         self.test_count = 0
 
@@ -43,8 +43,8 @@ class TFRConverter:
             self.counts = {'train': 0, 'test': 0, 'classes': len(self.categories)}
 
     def __enter__(self):
-        self.train_writer = tf.python_io.TFRecordWriter(self.train_set)
-        self.test_writer = tf.python_io.TFRecordWriter(self.test_set)
+        self.train_writer = tf.io.TFRecordWriter(self.train_set)
+        self.test_writer = tf.io.TFRecordWriter(self.test_set)
         return self
 
     def __exit__(self, *args):
@@ -107,7 +107,7 @@ class TFRConverter:
 
         height = img.shape[0] # Image height
         width = img.shape[1] # Image width
-         # Filename of the image. Empty if image is not from file
+        # Filename of the image. Empty if image is not from file
         _, encoded_image_data = cv2.imencode(".jpg", img) # Encoded image bytes
 
         image_format = b'jpeg'  # or b'png'

@@ -2,6 +2,7 @@ import os
 import warnings
 import codecs
 from datetime import timedelta
+from urllib.parse import urljoin
 
 from werkzeug.datastructures import ImmutableDict
 
@@ -59,9 +60,11 @@ def _convert_key(name):
 
 
 def _postprocess_config(data):
-    data['WP_URL'] = "{}/wp-json/deeppress/v1/records".format(data['WP_BASE_URL'])
+    # data['WP_URL'] = "{}/wp-json/deeppress/v1/records".format(data['WP_BASE_URL'])
+    data['WP_URL'] = urljoin(data['WP_BASE_URL'], '/wp-json/deeppress/v1/records')
     # URL for models and groups
-    data['WP_MODULES_URL'] = "{}/wp-json/deeppress/v1".format(data['WP_BASE_URL'])
+    # data['WP_MODULES_URL'] = "{}/wp-json/deeppress/v1".format(data['WP_BASE_URL'])
+    data['WP_MODULES_URL'] = urljoin(data['WP_BASE_URL'], '/wp-json/deeppress/v1')
 
     data['TRAINED_MODELS_DATA'] = os.path.join(data['DATA_DIR'], 'trained_models')
     data['BASE_MODELS_PATH'] = os.path.join(data['DATA_DIR'], 'base_models')

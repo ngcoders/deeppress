@@ -1,24 +1,40 @@
 import sys
 import logging
 import argparse
+import logging
+from logging.handlers import RotatingFileHandler
+from deeppress.config import config, load_config, DeepPressConfig
 
+
+# -----------------------------------Logging----------------------------------
+# if config.DEBUG:
+#     LOG_LEVEL = logging.DEBUG
+# else:
+#     LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(LOG_LEVEL)
+log_file = '/tmp/deeppress.log'
+print('log file: {}'.format(log_file))
+fh = RotatingFileHandler(log_file, maxBytes=10000000, backupCount=3)
+fh.setLevel(LOG_LEVEL)
+# create formatter and add it to the handlers
+formatter = logging.Formatter(fmt='%(levelname).1s %(asctime)s.%(msecs).03d: %(message)s [%(pathname)s:%(lineno)d]', datefmt='%Y-%m-%d %H:%M:%S')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+_LOGGER = logging.getLogger('deeppress')
+_LOGGER.setLevel(LOG_LEVEL)
+_LOGGER.addHandler(ch)
+_LOGGER.addHandler(fh)
+_LOGGER.propagate = False
+_LOGGER.info('Booting Up')
+# ----------------------------------------------------------------------------
 
 from deeppress.app import DeepPressApp
 from deeppress.bottle import install, route, run, request, hook, response
 from deeppress.web import AuthPlugin
-from deeppress.config import config, load_config, DeepPressConfig
 from deeppress.classifier_backend_main import predictor
 
-
-_LOGGER = logging.getLogger('deeppress')
-_LOGGER.setLevel(logging.DEBUG)
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
-# add formatter to ch
-ch.setFormatter(formatter)
-_LOGGER.addHandler(ch)
 
 app = None
 

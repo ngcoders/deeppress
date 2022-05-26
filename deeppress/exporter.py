@@ -9,7 +9,7 @@ def export(pipeline_config_path, output_directory, trained_checkpoint_prefix):
     write_inference_graph = False
     pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
 
-    with tf.gfile.GFile(pipeline_config_path, 'r') as f:
+    with tf.io.gfile.GFile(pipeline_config_path, 'r') as f:
         text_format.Merge(f.read(), pipeline_config)
 
     input_shape = None
