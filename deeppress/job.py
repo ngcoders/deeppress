@@ -69,7 +69,7 @@ class TrainingJob(Process):
             "job": job
         }
         self.configs_dir = os.path.join(os.path.dirname(__file__), "configs")
-        self.train_dir = f"{config.TRAIN_DIR}/job_{self.job['id']}"
+        self.train_dir = os.path.join(config.TRAIN_DIR, f"job_{self.job['id']}")
         ensure_path(self.train_dir)
         # If pipeline config file already there.
         self.already_running = os.path.isfile(os.path.join(self.train_dir, 'pipeline.config'))
@@ -274,8 +274,8 @@ class TrainingJob(Process):
         pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
         if os.path.exists(base_model_pipeline):
             shutil.copyfile(base_model_pipeline, pipeline_config_path)
-        if not os.path.exists(pipeline_config_path):
-            pipeline_config_path = os.path.join(self.configs_dir, model['architecture'], 'pipeline.config')
+        # if not os.path.exists(pipeline_config_path):
+        #     pipeline_config_path = os.path.join(self.configs_dir, model['architecture'], 'pipeline.config')
             # pipeline_config_path = os.path.join(self.configs_dir, f"{model['architecture']}.config")
 
         task = '0'
@@ -393,6 +393,7 @@ class TrainingJob(Process):
             # directly updated only during a KeyboardInterrupt. rest are handled elsewhere
             # fn_update_info('Aborted. User terminated the training process.')
             # fn_update_failure()
+            api.update_job_state(self.job, 'error', 'Training aborted by the user')
             raise
         finally:
             # status_timer.stop()
@@ -405,13 +406,6 @@ class TrainingJob(Process):
 
     def start_training(self):
         """Start training for the model"""
-        '''
-        {'id': '27', 'model': '3', 'model_type': 'detector', 'groups': ['newdata'], 'categories': False, 'steps': '50000', 
-        'status': 'error', 'state': 'added', 'done': False, 
-        'remarks': '2022-05-24 10:27:57 | Preparing dataset complete \n2022-05-24 10:27:57 | Dataset:- Train : 1193, Test : 293 \n2022-05-24 09:33:51 | Dataset not enough for training <br />\n2022-05-24 09:33:51 | Preparing dataset complete <br />\n2022-05-24 09:33:51 | Dataset:- Train : 0, Test : 0 <br />\n2022-05-24 09:26:20 | Dataset not enough for training &lt;br /&gt;<br />\n2022-05-24 09:26:20 | Preparing dataset complete &lt;br /&gt;<br />\n2022-05-24 09:26:20 | Dataset:- Train : 0, Test : 0 &lt;br /&gt;<br />\n2022-05-24 09:24:47 | Dataset not enough for training ', 
-        'created_at': '2022-05-09 04:45:41', 'updated_at': '2022-05-24 05:33:51'}
-        '''
-
         worker_replicas = 1
         ps_tasks = 0
         clone_on_cpu = False
@@ -438,7 +432,7 @@ class TrainingJob(Process):
         model['architecture'] = 'faster_rcnn_inception_resnet_v2_640x640_coco17_tpu-8'
         ensure_path(config.EXPORTED_MODELS)
         model_graph = os.path.join(config.EXPORTED_MODELS, f"{model['file_name']}.pb")
-        '''
+
         if not os.path.exists(os.path.join(train_dir, 'checkpoint')):  # New training started
             _LOGGER.debug("Checkpoints doesn't exists")
 
@@ -462,42 +456,44 @@ class TrainingJob(Process):
                     _LOGGER.error("Parent model not found. please train it first")
                     return False
 
-            if not os.path.exists(os.path.join(base_checkpoints_path, 'model.ckpt.meta')):
-                _LOGGER.debug("Base model not found for %s, Downloading now." % model['architecture'])
-                _f = api.download_model_files(model['architecture'])
+            if not os.path.exists(os.path.join(base_checkpoints_path, 'checkpoint', 'ckpt-0.index')):
+                _LOGGER.debug(f"Base model not found for {model['architecture']}, Downloading now.")
+                model_filename_tar = api.download_tf2_model_files(model['architecture'])
 
                 tmp_model_data = os.path.join(config.DATA_DIR, 'tmp_model_data')
-                if tarfile.is_tarfile(_f):
+                if tarfile.is_tarfile(model_filename_tar):
                     if os.path.exists(tmp_model_data):
                         shutil.rmtree(tmp_model_data)
                     ensure_path(tmp_model_data)
                     print("Tar file found")
-                    shutil.unpack_archive(_f, tmp_model_data)
-                    for root, dirs, files in os.walk(tmp_model_data):
-                        for file in files:
-                            if 'model.ckpt' in file:
-                                path = os.path.join(root, file)
-                                # print(path)
-                                ensure_path(base_checkpoints_path)
-                                shutil.copy(path, os.path.join(base_checkpoints_path, file))
+                    ensure_path(base_checkpoints_path)
+                    shutil.unpack_archive(model_filename_tar, config.BASE_MODELS_PATH)
+                    os.remove(model_filename_tar)
+                    # shutil.unpack_archive(model_tar_filename, tmp_model_data)
+                    # for root, dirs, files in os.walk(tmp_model_data):
+                    #     for filename in files:
+                    #         if 'ckpt-0.index' in filename:
+                    #             path = os.path.join(root, filename)
+                    #             # print(path)
+                    #             ensure_path(base_checkpoints_path)
+                    #             shutil.copy(path, os.path.join(base_checkpoints_path, filename))
                 else:
                     _LOGGER.error("Invalid file")
                     return False
             if os.path.exists(train_dir):
                 shutil.rmtree(train_dir)
-            shutil.copytree(base_checkpoints_path, train_dir)
-            if os.path.exists(os.path.join(train_dir, 'checkpoint')):
-                os.remove(os.path.join(train_dir, 'checkpoint'))
+            # shutil.copytree(base_checkpoints_path, train_dir)
+            if os.path.exists(os.path.join(train_dir, 'checkpoint', 'checkpoint')):
+                os.remove(os.path.join(train_dir, 'checkpoint', 'checkpoint'))
 
-        '''
         if os.path.exists(os.path.join(train_dir, 'data')):
             shutil.rmtree(os.path.join(train_dir, 'data'))
         shutil.copytree(self.data_dir, os.path.join(train_dir, 'data'))
         counts = {'train': 0, 'test': 1000, 'classes': 1}
         stats_file = os.path.join(train_dir, "data", "stats.json")
         try:
-            with open(stats_file) as _f:
-                counts = json.load(_f)
+            with open(stats_file, 'r') as handler:
+                counts = json.load(handler)
         except:
             pass
 

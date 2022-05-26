@@ -197,6 +197,7 @@ def update_model(id, data):
         )
     _LOGGER.debug(r.text)
 
+
 def update_job(id, data):
     """
     Update a model
@@ -286,6 +287,28 @@ def get_groups_list(page=1, per_page=10, extra=None):
     return get_module_records(endpoint, page=page, per_page=per_page, extra=extra)
 
 
+def download_tf2_model_files(model_name):
+    """
+    Download base model checkpoints for a new tensorflow 2 model
+
+    :param model_name: Name of model
+    :return: Downloaded file name
+    """
+    from .model_files_info import tf2_model_files as model_files
+    if not model_name in model_files.keys():
+        return None
+
+    if os.path.exists(model_files[model_name]['file_name']):
+        return model_files[model_name]['file_name']
+
+    r = requests.get(model_files[model_name]['url'], allow_redirects=True)
+    with open(model_files[model_name]['file_name'], 'wb') as _f:
+        _f.write(r.content)
+    if not os.path.exists(model_files[model_name]['file_name']):
+        return None
+    return model_files[model_name]['file_name']
+
+
 def download_model_files(model_name):
     """
     Download base model checkpoints for a new model
@@ -293,96 +316,7 @@ def download_model_files(model_name):
     :param model_name: Name of model
     :return: Downloaded file name
     """
-    model_files = {
-        'ssd_mobilenet_v1_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v1_coco_2018_01_28.tar.gz',
-            'file_name': 'ssd_mobilenet_v1_coco_2018_01_28.tar.gz'
-        },
-        'ssd_mobilenet_v2_coco' : {
-            'url': 'http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v2_coco_2018_03_29.tar.gz',
-            'file_name': 'ssd_mobilenet_v2_coco_2018_03_29.tar.gz'
-        },
-        'ssdlite_mobilenet_v2_coco' : {
-            'url': 'http://download.tensorflow.org/models/object_detection/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz',
-            'file_name': 'ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz'
-        },
-        'faster_rcnn_resnet101_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet101_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_resnet101_coco_2018_01_28.tar.gz'
-        },
-        'ssd_inception_v2_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz',
-            'file_name': 'ssd_inception_v2_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_inception_v2_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_v2_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_inception_v2_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_resnet50_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet50_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_resnet50_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_resnet50_lowproposals_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet50_lowproposals_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_resnet50_lowproposals_coco_2018_01_28.tar.gz'
-        },
-        'rfcn_resnet101_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/rfcn_resnet101_coco_2018_01_28.tar.gz',
-            'file_name': 'rfcn_resnet101_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_resnet101_lowproposals_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet101_lowproposals_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_resnet101_lowproposals_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_inception_resnet_v2_atrous_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_resnet_v2_atrous_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_inception_resnet_v2_atrous_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_inception_resnet_v2_atrous_lowproposals_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_resnet_v2_atrous_lowproposals_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_inception_resnet_v2_atrous_lowproposals_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_nas': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_nas_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_nas_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_nas_lowproposals_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_nas_lowproposals_coco_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_nas_lowproposals_coco_2018_01_28.tar.gz'
-        },
-        'mask_rcnn_inception_resnet_v2_atrous_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28.tar.gz',
-            'file_name': 'mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28.tar.gz'
-        },
-        'mask_rcnn_inception_v2_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/mask_rcnn_inception_v2_coco_2018_01_28.tar.gz',
-            'file_name': 'mask_rcnn_inception_v2_coco_2018_01_28.tar.gz'
-        },
-        'mask_rcnn_resnet101_atrous_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/mask_rcnn_resnet101_atrous_coco_2018_01_28.tar.gz',
-            'file_name': 'mask_rcnn_resnet101_atrous_coco_2018_01_28.tar.gz'
-        },
-	    'mask_rcnn_resnet50_atrous_coco': {
-            'url': 'http://download.tensorflow.org/models/object_detection/mask_rcnn_resnet50_atrous_coco_2018_01_28.tar.gz',
-            'file_name': 'mask_rcnn_resnet50_atrous_coco_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_resnet101_kitti': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet101_kitti_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_resnet101_kitti_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_inception_resnet_v2_atrous_oid': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_resnet_v2_atrous_oid_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_inception_resnet_v2_atrous_oid_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid_2018_01_28.tar.gz',
-            'file_name': 'faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid_2018_01_28.tar.gz'
-        },
-        'faster_rcnn_resnet101_ava_v2.1': {
-            'url': 'http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet101_ava_v2.1_2018_04_30.tar.gz',
-            'file_name': 'faster_rcnn_resnet101_ava_v2.1_2018_04_30.tar.gz'
-        }
-    }
+    from .model_files_info import tf1_model_files as model_files
     if not model_name in model_files.keys():
         return None
 
