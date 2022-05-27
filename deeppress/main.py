@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 import argparse
@@ -55,7 +56,7 @@ def classify_image():
     filename = request.forms.get('model')
     image = request.files.get('image')
     prediction = predictor(image.file.read(), filename)
-    if not prediction == False:
+    if prediction == True:
         return {'success': True, 'Predictions' : prediction}
     else:
         return {'success': False, 'error': 'Could not predict'}
@@ -94,6 +95,11 @@ def train_model():
         app.stop_training()
     return {'success': True}
 
+def ensure_paths():
+    paths = [config.LOG_DIR]
+    for path in paths:
+        if not os.path.exists(path):
+            os.makedirs(path)
 
 def main(path=None):
     if path:
@@ -101,6 +107,7 @@ def main(path=None):
 
     global app, config
     object.__setattr__(config, '_config', load_config(path))
+    ensure_paths()
     app = DeepPressApp()
 
     install(AuthPlugin(config.LOCAL_AUTH_TOKEN))

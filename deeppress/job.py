@@ -14,32 +14,25 @@ from datetime import datetime
 import re
 import tensorflow as tf
 from tensorflow.python.lib.io import file_io
-# from object_detection import trainer
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
 from object_detection.utils import config_util
-
-
 
 from deeppress import api
 from deeppress.image_to_tfr import TFRConverter
 from deeppress import exporter
 # from deeppress.eval import run_eval
 from deeppress.config import config
-from deeppress.utils import TFLogHandler, StatusThread
+from deeppress.utils import TailThread
 from deeppress import label_maker
 
-# _LOGGER = logging.getLogger('deeppress.job')
-# tfh = TFLogHandler()
-# tfl = logging.getLogger('tensorflow').addHandler(tfh)
-tfh = TFLogHandler()
+
 tfl = logging.getLogger('tensorflow')
 tfl.setLevel(logging.INFO)
 formatter = logging.Formatter(fmt='%(levelname).1s %(asctime)s.%(msecs).03d: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 for h in tfl.handlers:
     h.setFormatter(formatter)
-tfl.addHandler(tfh)
 _LOGGER = logging.getLogger('deeppress.job')
 tfl.addHandler(_LOGGER)
 tfl.propagate = False
@@ -283,8 +276,7 @@ class TrainingJob(Process):
             tf.io.gfile.makedirs(train_dir)
         if pipeline_config_path:
             _LOGGER.info(f"Pipeline config file : {pipeline_config_path}")
-            configs = config_util.get_configs_from_pipeline_file(
-                pipeline_config_path)
+            configs = config_util.get_configs_from_pipeline_file(pipeline_config_path)
             if task == '0':
                 tf.io.gfile.copy(pipeline_config_path,
                               os.path.join(train_dir, 'pipeline.config'),
@@ -294,7 +286,7 @@ class TrainingJob(Process):
             return False
 
         pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
-        job['pipeline_config_path'] = pipeline_config_path
+        self.pipeline_config_path = pipeline_config_path
 
         # with open(model_json_path, 'w') as mf:
         #     json.dump(job, mf)
@@ -324,15 +316,16 @@ class TrainingJob(Process):
         input_config.label_map_path = os.path.join(train_dir, 'data', "labels.pbtxt")
 
         eval_config = configs['eval_config']
-        eval_input_config = configs['eval_input_configs']
+        eval_input_config = configs['eval_input_configs'][0]
 
         eval_config.num_examples = counts['test']
         eval_config.max_evals = 1
 
         # # Update input config to use updated list of input
-        # eval_input_config.tf_record_input_reader.ClearField('input_path')
-        # eval_input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "test_baheads.tfrecord-*"))
-        # eval_input_config.label_map_path = os.path.join(train_dir, 'data', "labels.pbtxt")
+        eval_input_config.shuffle = True
+        eval_input_config.tf_record_input_reader.ClearField('input_path')
+        eval_input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "test_baheads.tfrecord-*"))
+        eval_input_config.label_map_path = os.path.join(train_dir, 'data', "labels.pbtxt")
 
         # Save the updated config to pipeline file
         config_util.save_pipeline_config(config_util.create_pipeline_proto_from_configs({
@@ -340,69 +333,73 @@ class TrainingJob(Process):
             'train_config': train_config,
             'train_input_config': input_config,
             'eval_config': eval_config,
-            'eval_input_configs': eval_input_config
-
+            'eval_input_configs': [eval_input_config]
         }), train_dir)
         return True
 
-    def _train(self, model_dir, pipeline_config_path, num_train_steps, evalStep):
-        # print('***** \n\n\n _train start 0 \n\n\n***')
-        # # strategy = tf.compat.v2.distribute.experimental.CentralStorageStrategy()
-        # strategy = tf.compat.v2.distribute.MirroredStrategy()
-        # print('***** \n\n\n _train start \n\n\n***')
-        # with strategy.scope():
-        #     model_lib_v2.train_loop(
-        #         pipeline_config_path=pipeline_config_path,
-        #         model_dir=model_dir,
-        #         train_steps=num_train_steps,
-        #         use_tpu=False,
-        #         checkpoint_every_n=evalStep,
-        #         record_summaries=True)
-        # print('***** \n\n\n _train end \n\n\n***')
-        command = [
-            'python3',
-            '/tensorflow/models/research/object_detection/model_main_tf2.py',
-            '--model_dir={}'.format(model_dir),
-            '--num_train_steps={}'.format(num_train_steps),
-            '--sample_1_of_n_eval_examples={}'.format(1),
-            '--pipeline_config_path={}'.format(pipeline_config_path),
-            '--checkpoint_every_n={}'.format(evalStep),
-            '--alsologtostderr',
-        ]
+    def run_command(self, command, logger_filename):
+        ''' run training or evaluation and save the output to a file '''
         _LOGGER.debug('executing the command: ')
         [_LOGGER.debug(f'{line}') for line in command]
-        result = subprocess.run(command, stdout=subprocess.PIPE)
-        _LOGGER.info(str(result.stdout, 'UTF-8'))
-
-    def _start_training(self, job, train_dir):
-        '''
-        params:
-            job: the details of the current training
-            fn_update_failure: function to update failure, if encountered
-            fn_update_info: update information (as text)
-            fn_update_train_info: update training information such as steps, loss etc
-        '''
-        # status_timer = StatusThread(handler=tfh, num_steps=job['endStep'], job=job, info=info, fn_update_info=fn_update_train_info)
-        # status_timer.start()
-        _LOGGER.info(f'self.train_dir: {self.train_dir}')
-        for k, v in job.items():
-            print(f'{k}: {v}')
         try:
-            self._train(self.train_dir, job['pipeline_config_path'], job['steps'], job.get('evalStep', 5000))
-        except KeyboardInterrupt:
-            # directly updated only during a KeyboardInterrupt. rest are handled elsewhere
-            # fn_update_info('Aborted. User terminated the training process.')
-            # fn_update_failure()
+            tail = TailThread(self.job, self.job['steps'], logger_filename)
+            tail.start()
+            with open(logger_filename, 'a') as logger:
+                process = subprocess.run(command, check=True, stdout=logger, stderr=logger)
+            self.status = True
+            self.error = None
+        except KeyboardInterrupt as exc:
             api.update_job_state(self.job, 'error', 'Training aborted by the user')
+            _LOGGER.exception(str(exc))
+            self.status = False
+            self.error = str(exc)
             raise
+        except Exception as exc:
+            api.update_job_state(self.job, 'error', str(exc))
+            _LOGGER.exception(str(exc))
+            self.status = False
+            self.error = str(exc)
         finally:
-            # status_timer.stop()
-            # if status_timer.is_alive():
-            #     _LOGGER.info('Waiting for status thread to close')
-            #     status_timer.join()
-            #     _LOGGER.info('Status thread closed successfully')
+            tail.stop()
+            if tail.is_alive():
+                _LOGGER.info('Waiting for tail thread to close')
+                tail.join()
+                _LOGGER.info('Tail thread closed successfully')
             _LOGGER.info('Training Stopped')
+            return self.status
 
+    def _train(self, job, logger_filename):
+        ''' run a training '''
+        command = [
+            f"python3",
+            f"/tensorflow/models/research/object_detection/model_main_tf2.py",
+            f"--model_dir={self.train_dir}",
+            f"--num_train_steps={job['steps']}",
+            f"--sample_1_of_n_eval_examples=1",
+            f"--pipeline_config_path={self.pipeline_config_path}",
+            f"--checkpoint_every_n={job.get('evalStep', 5000)}",
+            f"--alsologtostderr",
+        ]
+        return self.run_command(command, logger_filename)
+
+    def _eval(self, job, logger_filename):
+        ''' run evaluation on the current training '''
+        command = [
+            f"python3",
+            f"/tensorflow/models/research/object_detection/model_main_tf2.py",
+            f"--model_dir={self.train_dir}",
+            f"--num_train_steps={job['steps']}",
+            f"--sample_1_of_n_eval_examples=1",
+            f"--pipeline_config_path={self.pipeline_config_path}",
+            f"--checkpoint_every_n={job.get('evalStep', 5000)}",
+            f"--checkpoint_dir={self.train_dir}",
+            f"--eval_timeout=1",
+            f"--eval_on_train_data=false",
+            # '--wait_interval=1',
+            # '--timeout=1',
+            "--alsologtostderr",
+        ]
+        return self.run_command(command, logger_filename)
 
     def start_training(self):
         """Start training for the model"""
@@ -418,14 +415,6 @@ class TrainingJob(Process):
         job = self.job
         num_steps = int(job['steps'])
 
-        try:
-            if config.DEBUG:
-                num_steps = 50
-        except AttributeError:
-            pass
-        except Exception as e:
-            _LOGGER.error(e)
-
         job = api.update_job_state(job, 'training', f'Start training for {num_steps} steps')
 
         model = self.model
@@ -439,7 +428,7 @@ class TrainingJob(Process):
             base_checkpoints_path = os.path.join(config.BASE_MODELS_PATH, model['architecture'])
             _tmf = os.path.join(config.TRAINED_MODELS_DATA, model['file_name'])
             if os.path.isdir(_tmf):
-                _LOGGER.debug("Model already exists as %s" % model_graph)
+                _LOGGER.debug(f"Model already exists as {model_graph}")
                 base_checkpoints_path = _tmf
             elif model['type'] == 'new':
                 _LOGGER.debug("model type new")
@@ -501,7 +490,17 @@ class TrainingJob(Process):
         if not self.edit_pipeline(job, model, counts):
             _LOGGER.error('edit_pipeline failed')
             return False
-        self._start_training(job, train_dir)
+        
+        time_str = datetime.now().strftime('%y%m%d_%H%M%S')
+        logger_filename_train = os.path.join(config.LOG_DIR, f"job_{job['id']}_{time_str}_train")
+        logger_filename_test = os.path.join(config.LOG_DIR, f"job_{job['id']}_{time_str}_test")
+
+        # TODO: testing it only for a single training and eval combo. Expand it
+        # TODO: export the model
+        if self._train(job, logger_filename_train):
+            if self._eval(job, logger_filename_test):
+                return True
+
         '''
         pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
         if not os.path.exists(pipeline_config_path):

@@ -73,6 +73,7 @@ def _postprocess_config(data):
     data['DATASET_DIR'] = os.path.join(data['DATA_DIR'], 'dataset')
     data['TRAIN_DIR'] = os.path.join(data['DATA_DIR'], 'train')
     data['DOWNLOADS_DIR'] = os.path.join(data['DATA_DIR'], 'downloads')
+    data['LOG_DIR'] = os.path.join(data['DATA_DIR'], 'logs')
 
 
 def _sanitize_data(data, allow_internal=False):
