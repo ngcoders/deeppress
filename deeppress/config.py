@@ -17,7 +17,11 @@ DEFAULTS = {
     'WP_PASSWORD': 'admin',
     'LOCAL_HOST': 'localhost',
     'LOCAL_PORT': 8080,
-    'LOCAL_AUTH_TOKEN': 'YWRtaW46YmFzZWFwcA=='
+    'LOCAL_AUTH_TOKEN': 'YWRtaW46YmFzZWFwcA==',
+    
+    'NUM_STEPS_FOR_EVAL': 5000,
+    'IMAGE_HEIGHT': 640,
+    'IMAGE_WIDTH': 640,
 }
 
 

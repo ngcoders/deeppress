@@ -2,6 +2,7 @@ import datetime
 import urllib.parse
 import json
 import os
+from tqdm import tqdm
 import queue
 import threading
 import logging
@@ -295,15 +296,23 @@ def download_tf2_model_files(model_name):
     :return: Downloaded file name
     """
     from .model_files_info import tf2_model_files as model_files
-    if not model_name in model_files.keys():
+    if model_name not in model_files.keys():
         return None
 
     if os.path.exists(model_files[model_name]['file_name']):
         return model_files[model_name]['file_name']
 
-    r = requests.get(model_files[model_name]['url'], allow_redirects=True)
-    with open(model_files[model_name]['file_name'], 'wb') as _f:
-        _f.write(r.content)
+    response = requests.get(model_files[model_name]['url'], allow_redirects=True, stream=True)
+    if response.status_code != requests.codes.ok:
+        _LOGGER.error(f'Failed to download {model_name}. Error code: {response.status_code}')
+        return None
+
+    total_size = int(response.headers.get('Content-Length', 0))
+    with open(model_files[model_name]['file_name'], 'wb') as handle,\
+            tqdm(unit='B', total=total_size, unit_scale=True, unit_divisor=1024) as bar:
+        for chunk in response.iter_content(chunk_size=1024*1024):
+            size = handle.write(chunk)
+            bar.update(size)
     if not os.path.exists(model_files[model_name]['file_name']):
         return None
     return model_files[model_name]['file_name']
@@ -317,7 +326,7 @@ def download_model_files(model_name):
     :return: Downloaded file name
     """
     from .model_files_info import tf1_model_files as model_files
-    if not model_name in model_files.keys():
+    if model_name not in model_files.keys():
         return None
 
     if os.path.exists(model_files[model_name]['file_name']):

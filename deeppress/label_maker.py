@@ -24,7 +24,7 @@ def make(filename):
         item = label_map.item.add()
         item.id = i + 1
         item.name = all_items[i]
-        print("{}: {}".format(i+1, all_items[i]))
+        print(f'{i + 1}: {all_items[i]}')
 
     with open(filename, 'w') as handle:
         handle.write(text_format.MessageToString(label_map))

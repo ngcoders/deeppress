@@ -95,8 +95,18 @@ def train_model():
         app.stop_training()
     return {'success': True}
 
+
 def ensure_paths():
-    paths = [config.LOG_DIR]
+    paths = [
+        config.TRAINED_MODELS_DATA,
+        config.BASE_MODELS_PATH,
+        config.EVAL_DIR,
+        config.EXPORTED_MODELS,
+        config.DATASET_DIR,
+        config.TRAIN_DIR,
+        config.DOWNLOADS_DIR,
+        config.LOG_DIR,
+    ]
     for path in paths:
         if not os.path.exists(path):
             os.makedirs(path)

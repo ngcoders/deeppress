@@ -116,7 +116,7 @@ class TailThread(threading.Thread):
             multiline_msg = ''
             for line in loglines:
                 # get the new lines of the file line by line
-                print(line, end='')
+                print(line, end='', flush=True)
                 multiline_msg += line
                 if not self.first_line_pr(multiline_msg):
                     # if the first line is not found, flush the information

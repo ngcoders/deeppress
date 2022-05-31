@@ -1,22 +1,29 @@
-import tensorflow as tf
-from google.protobuf import text_format
-from object_detection import exporter
-from object_detection.protos import pipeline_pb2
+import logging
+import subprocess
 
 
-def export(pipeline_config_path, output_directory, trained_checkpoint_prefix):
-    input_type = 'image_tensor'
-    write_inference_graph = False
-    pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
+_LOGGER = logging.getLogger('deeppress.exporter')
 
-    with tf.io.gfile.GFile(pipeline_config_path, 'r') as f:
-        text_format.Merge(f.read(), pipeline_config)
-
-    input_shape = None
-    exporter.export_inference_graph(input_type, pipeline_config,
-                                    trained_checkpoint_prefix,
-                                    output_directory, input_shape,
-                                    write_inference_graph)
+def export(pipeline_config_path, output_directory, trained_checkpoint_dir):
+    '''
+        python3 /tensorflow/models/research/object_detection/exporter_main_v2.py \
+        --input_type=image_tensor \
+        --pipeline_config_path=data/trained_models/0_1000_test2_efficientdet_d3_211103_115143/pipeline.config \
+        --trained_checkpoint_dir=data/trained_models/0_1000_test2_efficientdet_d3_211103_115143/ \
+        --output_directory=data/tflite_models/0_1000_test2_efficientdet_d3_211103_115143
+    '''
+    command = [
+        'python3',
+        '/tensorflow/models/research/object_detection/exporter_main_v2.py',
+        '--input_type=image_tensor',
+        f'--pipeline_config_path={pipeline_config_path}',
+        f'--trained_checkpoint_dir={trained_checkpoint_dir}',
+        f'--output_directory={output_directory}',
+    ]
+    _LOGGER.debug('executing the command: ')
+    [_LOGGER.debug(f'{line}') for line in command]
+    result = subprocess.run(command, stdout=subprocess.PIPE)
+    _LOGGER.info(str(result.stdout, 'UTF-8'))
 
 
 if __name__ == '__main__':
