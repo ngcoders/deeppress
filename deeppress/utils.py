@@ -126,12 +126,10 @@ class TailThread(threading.Thread):
                 step, precision, recall, loss, learning_rate = self.get_precision_recall(multiline_msg)
                 if step is not None:
                     # status = f'{step:6d} {precision:0.6f} {recall:0.6f} {loss:0.6f} {learning_rate:0.6f}'
-                    status = f'Steps: {step}/{self.num_steps} Precision (mAP@.50IOU): {precision:0.6f} '\
-                             f'Recall: (AR@10) {recall:0.6f} Loss: {loss:0.6f}'
+                    status = f'Steps: {step}/{self.num_steps} Precision: {precision:0.6f} '\
+                             f'Recall: {recall:0.6f} Loss: {loss:0.6f}'
                     print(status)
                     api.update_job_state(self.job, 'training', status)
-                    with open('report.log', 'a') as handler:
-                        handler.write(f'{status}\n')
                     multiline_msg = ''
 
     def stop(self):

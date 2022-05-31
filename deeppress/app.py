@@ -1,4 +1,4 @@
-from deeppress.detection import DetectorModel
+from deeppress.tf2_detection import TF2DetectorModel as DetectorModel
 from deeppress.trainer import TrainingApp
 import cv2
 import numpy
@@ -28,8 +28,10 @@ class DeepPressApp(object):
         return self.mode_file
 
     def load_model(self, model_file):
+        print('load_model')
         self.detector.load(model_file)
 
     def detect(self, image_data, thresh):
+        print('detect')
         img = cv2.imdecode(numpy.fromstring(image_data, numpy.uint8), cv2.IMREAD_UNCHANGED)
         return self.detector.detect(img, thresh)

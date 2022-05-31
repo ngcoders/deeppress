@@ -50,10 +50,142 @@ def get_valid_filename(s):
     return re.sub(r'(?u)[^-\w.]', '', s)
 
 
-class ObjectDetectionTrainingWorkAround():
+class EditPipeline():
     ''' 
-        this is a work around to run train and eval simultaneously
-        this is to be used as a inheritance to the below class
+        this class contains pipeline edit functions for each type of model.
+        use it as a inheritance to the TrainingJob class.
+    '''
+    def __init__(self):
+        pass
+
+    def faster_rcnn_replicating_humandetection_v2_1(self, job, model_config, train_config, input_config, counts):
+        model_config.faster_rcnn.num_classes = counts
+        model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = 600
+        model_config.faster_rcnn.image_resizer.fixed_shape_resizer.width = 800
+        # model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.min_dimension = 600
+        # model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.max_dimension = 1024
+        
+        train_config.batch_size = 1
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.initial_learning_rate = 0.00030000001
+
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule.add()
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step = 900000
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].learning_rate = 2.9999999e-05
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule.add()
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step = 1200000
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].learning_rate = 3.0000001e-06
+
+    def faster_rcnn(self, job, model_config, train_config, input_config, counts):
+        ''' configurations specific for faster_rcnn ''' 
+        model_config.faster_rcnn.num_classes = counts
+        # model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
+        # model_config.faster_rcnn.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
+        model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.min_dimension = 600
+        model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.max_dimension = 1024
+        try:
+            learning_rate = job['learning_rate']
+        except Exception:
+            learning_rate = 0.000149
+        train_config.batch_size = 1
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.learning_rate_base = learning_rate
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.total_steps = 100000
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.warmup_learning_rate = learning_rate / 100
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.warmup_steps = 2500
+
+    def ssd(self, job, model_config, train_config, input_config, counts):
+        ''' configurations specific for ssd ''' 
+        model_config.ssd.num_classes = counts
+        model_config.ssd.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
+        model_config.ssd.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
+        train_config.batch_size = 2
+        # pipeline_config.train_config.batch_size = 16      # for models other than efficientdet_d1
+        try:
+            learning_rate = job['learning_rate']
+        except Exception:
+            learning_rate = 0.000149
+        train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.initial_learning_rate = learning_rate
+        train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.decay_steps = learning_rate / 5
+
+    def edit_pipeline(self, job, model, counts):
+        ''' edit the pipeline '''
+        train_dir = self.train_dir
+        base_model_pipeline = os.path.join(config.BASE_MODELS_PATH, self.model['architecture'], 'pipeline.config')
+        self.pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
+        if not os.path.exists(base_model_pipeline):
+            raise FileNotFoundError(f'pipeline file does not exists in {base_model_pipeline}')
+
+        shutil.copyfile(base_model_pipeline, self.pipeline_config_path)
+        # if not os.path.exists(pipeline_config_path):
+        #     pipeline_config_path = os.path.join(self.configs_dir, model['architecture'], 'pipeline.config')
+            # pipeline_config_path = os.path.join(self.configs_dir, f"{model['architecture']}.config")
+
+        # task = '0'
+        # if task == '0':
+        #     tf.io.gfile.makedirs(train_dir)
+        # if pipeline_config_path:
+        #     _LOGGER.info(f"Pipeline config file : {pipeline_config_path}")
+        #     configs = config_util.get_configs_from_pipeline_file(pipeline_config_path)
+        #     if task == '0':
+        #         tf.io.gfile.copy(pipeline_config_path,
+        #                       os.path.join(train_dir, 'pipeline.config'),
+        #                       overwrite=True)
+        # else:
+        #     _LOGGER.error("No config found")
+        #     return False
+
+        # with open(model_json_path, 'w') as mf:
+        #     json.dump(job, mf)
+
+        configs = config_util.get_configs_from_pipeline_file(self.pipeline_config_path)
+        model_config = configs['model']
+        train_config = configs['train_config']
+        input_config = configs['train_input_config']
+
+        if model_config.HasField('faster_rcnn'):
+            # self.faster_rcnn(job, model_config, train_config, input_config, counts['classes'])
+            self.faster_rcnn_replicating_humandetection_v2_1(job, model_config, train_config, input_config, counts['classes'])
+        elif model_config.HasField('ssd'):
+            self.ssd(job, model_config, train_config, input_config, counts['classes'])
+
+        # Set num_steps
+        # train_config.num_steps = int(job['steps'])
+        train_config.num_steps = int(job['evalStep'])
+        train_config.batch_size = job.get('batch_size', 2)
+        train_config.fine_tune_checkpoint = job['checkpoint']
+        train_config.fine_tune_checkpoint_type = 'detection'
+
+        # Update input config to use updated list of input
+        input_config.tf_record_input_reader.ClearField('input_path')
+        input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "train_baheads.tfrecord-*"))
+        input_config.label_map_path = self.labels_file
+
+        eval_config = configs['eval_config']
+        eval_input_config = configs['eval_input_configs'][0]
+
+        eval_config.num_examples = counts['test']
+        eval_config.max_evals = 1
+
+        # Update input config to use updated list of input
+        eval_input_config.shuffle = True
+        eval_input_config.tf_record_input_reader.ClearField('input_path')
+        eval_input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "test_baheads.tfrecord-*"))
+        eval_input_config.label_map_path = self.labels_file
+
+        # Save the updated config to pipeline file
+        config_util.save_pipeline_config(config_util.create_pipeline_proto_from_configs({
+            'model': model_config,
+            'train_config': train_config,
+            'train_input_config': input_config,
+            'eval_config': eval_config,
+            'eval_input_configs': [eval_input_config]
+        }), train_dir)
+        return True
+
+
+class TrainEvalWorkAround():
+    ''' 
+        this is a work around to run train and eval simultaneously in object detection tf2.
+        use it as a inheritance to the TrainingJob class.
     '''
     def __init__(self, job):
         pass
@@ -141,7 +273,7 @@ class ObjectDetectionTrainingWorkAround():
         return True
     
 
-class TrainingJob(Process, ObjectDetectionTrainingWorkAround):
+class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
     def __init__(self, job):
         """Start a new training Job"""
         super(TrainingJob, self).__init__()
@@ -222,21 +354,6 @@ class TrainingJob(Process, ObjectDetectionTrainingWorkAround):
         else:
             self.groups = []
         return
-
-        # model_id = self.model["id"]
-        # page = 1
-        # while True:
-        #     res = api.get_groups_list(page=page, per_page=50)
-        #     if isinstance(res, dict) and 'data' in res.keys():
-        #         data = res['data']
-        #         total = res['total']
-        #         page += 1
-        #         if len(data) == 0:
-        #             break
-        #         for record in data:
-        #             group_model_id = int(record['model'])
-        #             if model_id != 0 and int(model_id) == group_model_id:
-        #                 self.groups.append(record['group_id'])
 
     def cleanup(self):
         """Clean all the model related data"""
@@ -350,94 +467,19 @@ class TrainingJob(Process, ObjectDetectionTrainingWorkAround):
         else:
             return None
 
-    def create_checkpoint(self, job):
-        if os.path.exists(os.path.join(self.train_dir, 'ckpt-*')):
-            # model already exists
-            # TODO: job['checkpoint'] should point to a model than a folder
-            _LOGGER.info('A checkpoint already exists. Fine tuning')
-            job['checkpoint'] = self.train_dir
-            return
-        
+    def get_checkpoint(self, job):
+        ''' find the relevant checkpoint '''
+        # if os.path.exists(os.path.join(self.train_dir, 'ckpt-*')):
+        #     # model already exists
+        #     _LOGGER.info('A checkpoint already exists. Fine tuning')
+        #     job['checkpoint'] = self.train_dir
+        #     return
+
         _LOGGER.info('A checkpoint does not exist. Starting from a base model')
         job['checkpoint'] = os.path.join(config.BASE_MODELS_PATH, self.model['architecture'], 'checkpoint', 'ckpt-0')
+        if not os.path.exists(job['checkpoint'] + '.index'):
+            raise FileNotFoundError(f"checkpoint file does not exists in {job['checkpoint']}")
         return
-
-    def edit_pipeline(self, job, model, counts):
-        train_dir = self.train_dir
-        base_model_pipeline = os.path.join(config.BASE_MODELS_PATH, self.model['architecture'], 'pipeline.config')
-        self.pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
-        if os.path.exists(base_model_pipeline):
-            shutil.copyfile(base_model_pipeline, self.pipeline_config_path)
-        # if not os.path.exists(pipeline_config_path):
-        #     pipeline_config_path = os.path.join(self.configs_dir, model['architecture'], 'pipeline.config')
-            # pipeline_config_path = os.path.join(self.configs_dir, f"{model['architecture']}.config")
-
-        # task = '0'
-        # if task == '0':
-        #     tf.io.gfile.makedirs(train_dir)
-        # if pipeline_config_path:
-        #     _LOGGER.info(f"Pipeline config file : {pipeline_config_path}")
-        #     configs = config_util.get_configs_from_pipeline_file(pipeline_config_path)
-        #     if task == '0':
-        #         tf.io.gfile.copy(pipeline_config_path,
-        #                       os.path.join(train_dir, 'pipeline.config'),
-        #                       overwrite=True)
-        # else:
-        #     _LOGGER.error("No config found")
-        #     return False
-
-        # self.pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
-
-        # with open(model_json_path, 'w') as mf:
-        #     json.dump(job, mf)
-
-        configs = config_util.get_configs_from_pipeline_file(self.pipeline_config_path)
-        model_config = configs['model']
-        train_config = configs['train_config']
-        input_config = configs['train_input_config']
-
-
-        if model_config.HasField('faster_rcnn'):
-            model_config.faster_rcnn.num_classes = counts['classes']
-            model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
-            model_config.faster_rcnn.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
-
-        if model_config.HasField('ssd'):
-            model_config.ssd.num_classes = counts['classes']
-
-        # Set num_steps
-        # train_config.num_steps = int(job['steps'])
-        train_config.num_steps = int(job['evalStep'])
-        train_config.batch_size = job.get('batch_size', 2)
-        train_config.fine_tune_checkpoint = job['checkpoint']
-        train_config.fine_tune_checkpoint_type = 'detection'
-
-        # Update input config to use updated list of input
-        input_config.tf_record_input_reader.ClearField('input_path')
-        input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "train_baheads.tfrecord-*"))
-        input_config.label_map_path = self.labels_file
-
-        eval_config = configs['eval_config']
-        eval_input_config = configs['eval_input_configs'][0]
-
-        eval_config.num_examples = counts['test']
-        eval_config.max_evals = 1
-
-        # Update input config to use updated list of input
-        eval_input_config.shuffle = True
-        eval_input_config.tf_record_input_reader.ClearField('input_path')
-        eval_input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "test_baheads.tfrecord-*"))
-        eval_input_config.label_map_path = self.labels_file
-
-        # Save the updated config to pipeline file
-        config_util.save_pipeline_config(config_util.create_pipeline_proto_from_configs({
-            'model': model_config,
-            'train_config': train_config,
-            'train_input_config': input_config,
-            'eval_config': eval_config,
-            'eval_input_configs': [eval_input_config]
-        }), train_dir)
-        return True
 
     def run_command(self, command, logger_filename):
         ''' run training or evaluation and save the output to a file '''
@@ -522,12 +564,15 @@ class TrainingJob(Process, ObjectDetectionTrainingWorkAround):
             return False
 
         # Successfully exported
-        export_dir = os.path.exists(config.EXPORTED_MODELS, model['file_name'])
-        ensure_path(export_dir)
-        shutil.copy(trained_dir, export_dir)
+        export_dir = os.path.join(config.EXPORTED_MODELS, model['file_name'])
+        if os.path.exists(export_dir):
+            time_str = datetime.now().strftime('%y%m%d_%H%M%S')
+            newname = os.path.join(config.EXPORTED_MODELS, f"{model['file_name']}_{time_str}")
+            os.rename(export_dir, newname)
+        shutil.copytree(trained_dir, export_dir)
         shutil.copy(
-            os.path.join(train_dir, 'data', "labels.pbtxt"),
-            os.path.join(export_dir, '{}.pbtxt'.format(model['file_name']))
+            self.labels_file,
+            os.path.join(export_dir, f"{model['file_name']}.pbtxt")
         )
         return True
 
@@ -564,7 +609,7 @@ class TrainingJob(Process, ObjectDetectionTrainingWorkAround):
                 _LOGGER.debug("New model from parent model")
                 parent_model = api.get_model(model['parent'])
                 if not parent_model:
-                    raise Exception('Parent model not found on server')
+                    raise FileNotFoundError(f"Parent model {model['parent']} not found on server")
 
                 parent_tmf = os.path.join(config.TRAINED_MODELS_DATA, parent_model['file_name'])
                 if os.path.isdir(parent_tmf):
@@ -602,33 +647,15 @@ class TrainingJob(Process, ObjectDetectionTrainingWorkAround):
         if os.path.exists(os.path.join(train_dir, 'data')):
             shutil.rmtree(os.path.join(train_dir, 'data'))
         shutil.copytree(self.data_dir, os.path.join(train_dir, 'data'))
-        
+
         self.labels_file = os.path.join(train_dir, 'data', 'labels.pbtxt')                        # updating the labels file path
         counts = self.load_stats(train_dir)
-        self.create_checkpoint(job)
+        self.get_checkpoint(job)
         if not self.edit_pipeline(job, model, counts):
             _LOGGER.error('edit_pipeline failed')
             return False
-        
-        self.train_and_eval(job)
-        # time_str = datetime.now().strftime('%y%m%d_%H%M%S')
-        # logger_filename_train = os.path.join(config.LOG_DIR, f"job_{job['id']}_{time_str}_train")
-        # logger_filename_test = os.path.join(config.LOG_DIR, f"job_{job['id']}_{time_str}_test")
 
-        # TODO: testing it only for a single training and eval combo. Expand it
-        # TODO: export the model
-        # if self._train(job, logger_filename_train):
-        #     if self._eval(job, logger_filename_test):
-        #         return True
-        
-        # running train and eval in parallel in the current setup did not work
-        # eval runs out of memory as soon as it finds a checkpoint
-        # train_thread = Thread(target=self._train, args=(job, logger_filename_train))
-        # eval_thread = Thread(target=self._eval, args=(job, logger_filename_test))
-        # train_thread.start()
-        # eval_thread.start()
-        # train_thread.join()
-        # eval_thread.join()
+        self.train_and_eval(job)
 
         trained_dir = os.path.join(config.TRAINED_MODELS_DATA, model['file_name'])
         if os.path.exists(trained_dir):
@@ -636,13 +663,11 @@ class TrainingJob(Process, ObjectDetectionTrainingWorkAround):
         exporter.export(self.pipeline_config_path, trained_dir, self.train_dir)
 
         if self.copy_exported(train_dir, trained_dir, model):
-            job = api.update_job_state(job, 'complete', 'Done')
             _LOGGER.info('Finished Training')
             if os.path.exists(train_dir):
                 shutil.rmtree(train_dir)
             return True
         return False
-
         '''
         pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
         if not os.path.exists(pipeline_config_path):
