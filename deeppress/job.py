@@ -78,10 +78,10 @@ class EditPipeline():
     def faster_rcnn(self, job, model_config, train_config, input_config, counts):
         ''' configurations specific for faster_rcnn ''' 
         model_config.faster_rcnn.num_classes = counts
-        # model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
-        # model_config.faster_rcnn.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
-        model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.min_dimension = 600
-        model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.max_dimension = 1024
+        model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
+        model_config.faster_rcnn.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
+        # model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.min_dimension = 600
+        # model_config.faster_rcnn.image_resizer.keep_aspect_ratio_resizer.max_dimension = 1024
         try:
             learning_rate = job['learning_rate']
         except Exception:
@@ -143,7 +143,7 @@ class EditPipeline():
 
         if model_config.HasField('faster_rcnn'):
             # self.faster_rcnn(job, model_config, train_config, input_config, counts['classes'])
-            self.faster_rcnn_replicating_humandetection_v2_1(job, model_config, train_config, input_config, counts['classes'])
+            self.faster_rcnn(job, model_config, train_config, input_config, counts['classes'])
         elif model_config.HasField('ssd'):
             self.ssd(job, model_config, train_config, input_config, counts['classes'])
 
@@ -592,6 +592,7 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
         job = api.update_job_state(job, 'training', f'Start training for {num_steps} steps')
 
         model = self.model
+        # TODO: hard coded. Remove this once the front end is updated
         model['architecture'] = 'faster_rcnn_inception_resnet_v2_640x640_coco17_tpu-8'
         model_graph = os.path.join(config.EXPORTED_MODELS, f"{model['file_name']}.pb")
 
