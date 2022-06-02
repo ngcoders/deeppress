@@ -27,4 +27,4 @@ python3 -m deeppress.main --config=<path-to-config-file>
 ```
 
 Example config file `deeppress.conf.example`, Copy it and make your changes. Update
-WprdPress host details.
+WordPress host details.

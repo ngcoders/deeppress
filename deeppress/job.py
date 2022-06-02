@@ -149,7 +149,7 @@ class EditPipeline():
 
         # Set num_steps
         # train_config.num_steps = int(job['steps'])
-        train_config.num_steps = int(job['evalStep'])
+        train_config.num_steps = self.trainSteps
         train_config.batch_size = job.get('batch_size', 2)
         train_config.fine_tune_checkpoint = job['checkpoint']
         train_config.fine_tune_checkpoint_type = 'detection'
@@ -250,7 +250,7 @@ class TrainEvalWorkAround():
             tf.config.experimental.set_memory_growth(gpu_instance, True)
         startStep = 0
         endStep = int(job['steps'])
-        evalStep = int(job.get('evalStep', 500))
+        evalStep = min(int(job.get('evalStep', 5000)), endStep)
         firstrun = True
         for index, num_train_steps in enumerate(range(startStep + evalStep, endStep + 1, evalStep)):
             # if num_train_steps == evalStep:
@@ -291,6 +291,13 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
         ensure_path(self.train_dir)
         # If pipeline config file already there.
         self.already_running = os.path.isfile(os.path.join(self.train_dir, 'pipeline.config'))
+
+        self.endStep = int(job['steps'])
+        # self.trainSteps = int(job['steps'])           # for continues training
+        self.trainSteps = min(int(job.get('evalStep', 5000)), self.endStep)     # for train and eval
+        self.startStep = 0
+        self.evalStep = min(int(job.get('evalStep', 5000)), self.endStep)
+
         physical_devices = tf.config.list_physical_devices('GPU')
         for gpu_instance in physical_devices: 
             tf.config.experimental.set_memory_growth(gpu_instance, True)
@@ -512,7 +519,7 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
             # f"--num_train_steps={job['steps']}",
             f"--sample_1_of_n_eval_examples=1",
             f"--pipeline_config_path={self.pipeline_config_path}",
-            f"--checkpoint_every_n={job.get('evalStep', 5000)}",
+            f"--checkpoint_every_n={self.evalStep}",
             f"--alsologtostderr",
         ]
         try:
@@ -533,7 +540,7 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
             # f"--num_train_steps={job['steps']}",
             f"--sample_1_of_n_eval_examples=1",
             f"--pipeline_config_path={self.pipeline_config_path}",
-            f"--checkpoint_every_n={job.get('evalStep', 5000)}",
+            f"--checkpoint_every_n={self.evalStep}",
             f"--checkpoint_dir={self.train_dir}",
             f"--eval_timeout=1",
             f"--eval_on_train_data=false",

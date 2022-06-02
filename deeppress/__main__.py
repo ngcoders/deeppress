@@ -121,7 +121,7 @@ def main(path=None):
     app = DeepPressApp()
 
     install(AuthPlugin(config.LOCAL_AUTH_TOKEN))
-    run(host='0.0.0.0', port=8080)
+    run(host='0.0.0.0', port=8000)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'DeepPress')
