@@ -2,6 +2,7 @@ from deeppress.tf2_detection import TF2DetectorModel as DetectorModel
 from deeppress.trainer import TrainingApp
 import cv2
 import numpy
+from deeppress.config import config
 
 class DeepPressApp(object):
     def __init__(self):
@@ -15,6 +16,7 @@ class DeepPressApp(object):
 
     def start_training(self):
         if self.trainer:
+            self.unload_model()
             self.trainer.start()
 
     def stop_training(self):
@@ -27,11 +29,12 @@ class DeepPressApp(object):
     def current_model(self):
         return self.mode_file
 
-    def load_model(self, model_file):
-        print('load_model')
-        self.detector.load(model_file)
+    def load_model(self, model):
+        self.detector.load(config.EXPORTED_MODELS, model)
+
+    def unload_model(self):
+        self.detector.unload()
 
     def detect(self, image_data, thresh):
-        print('detect')
         img = cv2.imdecode(numpy.fromstring(image_data, numpy.uint8), cv2.IMREAD_UNCHANGED)
         return self.detector.detect(img, thresh)

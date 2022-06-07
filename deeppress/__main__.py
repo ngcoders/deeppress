@@ -64,15 +64,20 @@ def classify_image():
 
 @route('/detection', method='POST')
 def detect_objects():
-    model = request.forms.get('model')
-    image = request.files.get('image')
-    thresh = request.forms.get('thresh', default=75, type=int)
-    if thresh < 1 or thresh > 99:
-        return {'success': False, 'error': "Thresh value should be from 1 to 99"}
-    thresh //= 100
-    app.load_model(model)
-    box = app.detect(image.file.read(), thresh)
-    return {'success': True, 'box': box}
+    try:
+        model = request.forms.get('model')
+        image = request.files.get('image', None)
+        thresh = request.forms.get('thresh', default=75, type=int)
+        if thresh < 1 or thresh > 99:
+            return {'success': False, 'error': "Thresh value should be from 1 to 99"}
+        # thresh //= 100
+        app.load_model(model)
+        box = app.detect(image.file.read(), thresh)
+        _LOGGER.debug(f'Found {len(box)} detection')
+        return {'success': True, 'box': box}
+    except Exception as exc:
+        _LOGGER.exception(exc)
+        return {'success': False, 'error': str(exc)}
 
 
 @route('/training/status', method="GET")

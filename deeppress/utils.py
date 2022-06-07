@@ -3,10 +3,16 @@ import re
 import logging
 import threading
 import time
+from logging.handlers import RotatingFileHandler
 
 from deeppress import api
 
 _LOGGER = logging.getLogger('deeppress.utils')
+fh = RotatingFileHandler('/tmp/deeppress.log', maxBytes=10000000, backupCount=3)
+formatter = logging.Formatter(fmt='%(message)s')
+fh.setFormatter(formatter)
+_LOGGER.addHandler(fh)
+_LOGGER.propagate = False
 
 
 class TFLogHandler(logging.Handler):
@@ -129,6 +135,7 @@ class TailThread(threading.Thread):
                     status = f'Steps: {step}/{self.num_steps} Precision: {precision:0.6f} '\
                              f'Recall: {recall:0.6f} Loss: {loss:0.6f}'
                     print(status)
+                    # _LOGGER.info(status)
                     api.update_job_state(self.job, 'training', status)
                     multiline_msg = ''
 
