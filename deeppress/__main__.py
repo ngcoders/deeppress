@@ -101,6 +101,16 @@ def train_model():
     return {'success': True}
 
 
+@route('/restart', method='GET')
+def restart():
+    global app
+    app.stop()
+    app.terminate()
+    app = DeepPressApp()
+    app.start()
+    return {'success': True}
+
+
 def ensure_paths():
     paths = [
         config.TRAINED_MODELS_DATA,
@@ -124,6 +134,7 @@ def main(path=None):
     object.__setattr__(config, '_config', load_config(path))
     ensure_paths()
     app = DeepPressApp()
+    app.start()
 
     install(AuthPlugin(config.LOCAL_AUTH_TOKEN))
     run(host='0.0.0.0', port=8000)

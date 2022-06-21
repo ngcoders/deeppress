@@ -71,7 +71,19 @@ class TrainingApp(object):
         return False
 
     def stop(self):
+        import psutil
+        def kills(pid):
+            ''' Kills the parent and all spawned child processes '''
+            parent = psutil.Process(pid)
+            for child in parent.children(recursive=True):
+                # _LOGGER.debug(f'killing {child.pid}')
+                child.kill()
+            # _LOGGER.debug(f'killing {parent.pid}')
+            parent.kill()
+        
         if self.current_job:
+            _LOGGER.debug("Terminating active jobs")
+            kills(self.current_job.pid)
             self.current_job.terminate()
 
     def check_job_status(self, id):

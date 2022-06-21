@@ -1,11 +1,14 @@
+from multiprocessing import Process
 from deeppress.tf2_detection import TF2DetectorModel as DetectorModel
 from deeppress.trainer import TrainingApp
 import cv2
 import numpy
 from deeppress.config import config
 
-class DeepPressApp(object):
+class DeepPressApp(Process):
     def __init__(self):
+        super(Process, self).__init__()
+        self.running = True
         self.training_job = None
         self.detector = DetectorModel()
         self.mode_file = None
@@ -38,3 +41,11 @@ class DeepPressApp(object):
     def detect(self, image_data, thresh):
         img = cv2.imdecode(numpy.fromstring(image_data, numpy.uint8), cv2.IMREAD_UNCHANGED)
         return self.detector.detect(img, thresh)
+    
+    def stop(self):
+        self.running = False
+        self.trainer.stop()
+    
+    def run(self):
+        while self.running:
+            pass

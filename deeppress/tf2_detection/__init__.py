@@ -81,18 +81,22 @@ class TF2DetectorModel():
         # try to get the modelname.pbtxt file
         labels_file = os.path.join(path, modelname, 'saved_model', 'saved_model.pbtxt')
         if not os.path.exists(labels_file):
+            # if not found, look for <modelname>.pbtxt
+            filename = f'{modelname}.pbtxt'
+            labels_file = os.path.join(path, modelname, filename)
+        if not os.path.exists(labels_file):
             # if not found, look for baheads_map.pbtxt
             labels_file = os.path.join(path, 'baheads_map.pbtxt')
         if not os.path.exists(labels_file):
             raise FileNotFoundError('Labels file does not exist')
-        with open(labels_file, 'r') as labels_file:
-            labels_string = labels_file.read()
+        with open(labels_file, 'r') as handle:
+            labels_string = handle.read()
             labels_map = string_int_label_map_pb2.StringIntLabelMap()
             try:
                 text_format.Merge(labels_string, labels_map)
             except text_format.ParseError:
                 labels_map.ParseFromString(labels_string)
-            labels_dict = {item.id: item.display_name for item in labels_map.item}
+            labels_dict = {item.id: item.name for item in labels_map.item}
         self.labels = labels_dict
         return
 

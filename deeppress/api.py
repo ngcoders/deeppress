@@ -213,7 +213,7 @@ def update_job(id, data):
             auth=(config.WP_USERNAME, config.WP_PASSWORD),
             data=data
         )
-    _LOGGER.debug(r.text)
+    # _LOGGER.debug(r.text)
 
 
 def update_job_state(job, status, remarks=None, state=None):
