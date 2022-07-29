@@ -7,10 +7,7 @@ import time
 import threading
 
 from deeppress import api
-
 from deeppress.classifier_backend_main import ClassificationJob
-import tensorflow as tf
-# tf.logging.set_verbosity(tf.logging.INFO)
 
 
 _LOGGER = logging.getLogger('deeppress.trainer')

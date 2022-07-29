@@ -15,16 +15,11 @@ from threading import Thread
 from datetime import datetime
 import re
 import tensorflow as tf
-from tensorflow.python.lib.io import file_io
-from object_detection.builders import dataset_builder
-from object_detection.builders import graph_rewriter_builder
-from object_detection.builders import model_builder
 from object_detection.utils import config_util
 
 from deeppress import api
 from deeppress.image_to_tfr import TFRConverter
 from deeppress import exporter
-# from deeppress.eval import run_eval
 from deeppress.config import config
 from deeppress.utils import TailThread
 from deeppress import label_maker
@@ -38,6 +33,17 @@ for h in tfl.handlers:
 _LOGGER = logging.getLogger('deeppress.job')
 tfl.addHandler(_LOGGER)
 tfl.propagate = False
+
+
+quant = '''
+graph_rewriter {
+  quantization {
+    delay: 48000
+    weight_bits: 8
+    activation_bits: 8
+  }
+}
+'''
 
 
 def ensure_path(path_name):
@@ -58,7 +64,7 @@ class EditPipeline():
     def __init__(self):
         pass
 
-    def faster_rcnn_replicating_humandetection_v2_1(self, job, model_config, train_config, input_config, counts):
+    def faster_rcnn_replicating_humandetection_v2_1(self, job, model_config, train_config, counts):
         model_config.faster_rcnn.num_classes = counts
         model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = 600
         model_config.faster_rcnn.image_resizer.fixed_shape_resizer.width = 800
@@ -75,7 +81,7 @@ class EditPipeline():
         train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step = 1200000
         train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].learning_rate = 3.0000001e-06
 
-    def faster_rcnn(self, job, model_config, train_config, input_config, counts):
+    def faster_rcnn(self, job, model_config, train_config, counts):
         ''' configurations specific for faster_rcnn ''' 
         model_config.faster_rcnn.num_classes = counts
         model_config.faster_rcnn.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
@@ -85,14 +91,14 @@ class EditPipeline():
         try:
             learning_rate = job['learning_rate']
         except Exception:
-            learning_rate = 0.000149
+            learning_rate = 0.000159
         train_config.batch_size = 2
         train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.learning_rate_base = learning_rate
         train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.total_steps = self.endStep
         train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.warmup_learning_rate = learning_rate / 10
         train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.warmup_steps = int(self.endStep / 20)
 
-    def efficientdet(self, job, model_config, train_config, input_config, counts):
+    def efficientdet(self, job, model_config, train_config, counts):
         ''' configurations specific for efficientdet ''' 
         model_config.ssd.num_classes = counts
         # model_config.ssd.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
@@ -109,22 +115,22 @@ class EditPipeline():
         train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.initial_learning_rate = learning_rate
         train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.decay_steps = int(self.endStep / 5)
 
-    def ssd(self, job, model_config, train_config, input_config, counts):
-        ''' configurations specific for ssd ''' 
+    def ssd(self, job, model_config, train_config, counts):
+        ''' configurations specific for ssd '''
         model_config.ssd.num_classes = counts
         # model_config.ssd.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
         # model_config.ssd.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
-        model_config.ssd.image_resizer.keep_aspect_ratio_resizer.min_dimension = 600
-        model_config.ssd.image_resizer.keep_aspect_ratio_resizer.max_dimension = 800
+        model_config.ssd.image_resizer.keep_aspect_ratio_resizer.min_dimension = config.IMAGE_HEIGHT
+        model_config.ssd.image_resizer.keep_aspect_ratio_resizer.max_dimension = config.IMAGE_WIDTH
         model_config.ssd.image_resizer.keep_aspect_ratio_resizer.pad_to_max_dimension = True
 
         try:
             learning_rate = job['learning_rate']
         except Exception:
-            learning_rate = 0.000149
+            learning_rate = 0.000159
         train_config.batch_size = 2
         train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.initial_learning_rate = learning_rate
-        train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.decay_steps = int(self.endStep / 5)
+        train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.decay_steps = int(self.endStep / 4)
 
     def edit_pipeline(self, job, model, counts):
         ''' edit the pipeline '''
@@ -142,11 +148,11 @@ class EditPipeline():
         input_config = configs['train_input_config']
 
         if model_config.HasField('faster_rcnn'):
-            self.faster_rcnn(job, model_config, train_config, input_config, counts['classes'])
+            self.faster_rcnn(job, model_config, train_config, counts['classes'])
         elif 'efficientdet' in model['architecture']:
-            self.efficientdet(job, model_config, train_config, input_config, counts['classes'])
+            self.efficientdet(job, model_config, train_config, counts['classes'])
         elif model_config.HasField('ssd'):
-            self.ssd(job, model_config, train_config, input_config, counts['classes'])
+            self.ssd(job, model_config, train_config, counts['classes'])
 
         # Set num_steps
         train_config.num_steps = self.trainSteps
@@ -170,6 +176,12 @@ class EditPipeline():
         eval_input_config.tf_record_input_reader.input_path.append(os.path.join(train_dir, 'data', "test_baheads.tfrecord-*"))
         eval_input_config.label_map_path = self.labels_file
 
+        # if job['add_quantization']:
+        #     # add quatization parameters
+        #     configs['graph_rewriter'].quantization.delay = 48000
+        #     configs['graph_rewriter'].quantization.weight_bits = 8
+        #     configs['graph_rewriter'].quantization.activation_bits = 8
+
         # Save the updated config to pipeline file
         config_util.save_pipeline_config(config_util.create_pipeline_proto_from_configs({
             'model': model_config,
@@ -178,6 +190,11 @@ class EditPipeline():
             'eval_config': eval_config,
             'eval_input_configs': [eval_input_config]
         }), train_dir)
+
+        # if self.job['add_quantization']:
+            # global quant
+            # with open(self.pipeline_config_path, 'a') as handle:
+            #     handle.write(quant)
         return True
 
 
@@ -308,6 +325,8 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
         ensure_path(config.EXPORTED_MODELS)
         # labels_file initially made in the data_dir and copied to data/train/data directory
         self.labels_file = os.path.join(self.data_dir, 'labels.pbtxt')
+
+        self.job['add_quantization'] = bool(config.ADD_QUANTIZATION)
 
         self.endStep = int(self.job['steps'])
         # self.trainSteps = int(self.job['steps'])                           # for continues training
@@ -563,6 +582,7 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
             with open(logger_filename, 'a') as logger:
                 process = subprocess.run(command, check=True, stdout=logger, stderr=logger)
         except Exception as exc:
+            _LOGGER.error(f'Error: {str(exc)}')
             self.status = False
             raise
         else:
@@ -577,9 +597,11 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
 
     def _train(self, job, logger_filename):
         ''' run a training '''
+        filename = os.path.expanduser('~/tensorflow/models/research/object_detection/model_main_tf2.py')
         command = [
             f"python3",
-            f"/tensorflow/models/research/object_detection/model_main_tf2.py",
+            filename,
+            # f"/tensorflow/models/research/object_detection/model_main_tf2.py",
             f"--model_dir={self.train_dir}",
             # f"--num_train_steps={job['steps']}",
             f"--sample_1_of_n_eval_examples=1",
@@ -598,9 +620,11 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
 
     def _eval(self, job, logger_filename):
         ''' run evaluation on the current training '''
+        filename = os.path.expanduser('~/tensorflow/models/research/object_detection/model_main_tf2.py')
         command = [
             f"python3",
-            f"/tensorflow/models/research/object_detection/model_main_tf2.py",
+            filename,
+            # f"/tensorflow/models/research/object_detection/model_main_tf2.py",
             f"--model_dir={self.train_dir}",
             # f"--num_train_steps={job['steps']}",
             f"--sample_1_of_n_eval_examples=1",

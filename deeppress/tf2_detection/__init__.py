@@ -1,4 +1,4 @@
-
+import contextlib
 import os
 import cv2
 import math
@@ -7,16 +7,14 @@ import glob
 import logging
 from time import time
 from functools import wraps
-import tensorflow as tf
+# import tensorflow as tf
 import numpy as np
 import pandas as pd
 from PIL import Image
+from multiprocessing import Queue, Pipe, Process
 from google.protobuf import text_format
 from object_detection.protos import string_int_label_map_pb2
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-for gpu in gpus:
-    tf.config.experimental.set_memory_growth(gpu, True)
 debug_time = True
 _LOGGER = logging.getLogger('deeppress.tf2_detector')
 
@@ -33,16 +31,64 @@ def timing(func):
     return wrap
 
 
-class TF2DetectorModel():
-    def __init__(self):
+class TF2DetectorModel(Process):
+    def __init__(self, use_gpu, modelpath, request: Queue, response: Queue):
+        super(Process, self).__init__()
+        self.running = True
         self.model = None
         self.modelname = None
+        self.modelpath = modelpath
         self.model_file = None
         self.labels = None
+        self.use_gpu = use_gpu
+        self.request = request
+        self.response = response
+        ''' 
+            moved set_memory_growth() to run() to prevent the error
+            "not retrieve CUDA device count: CUDA_ERROR_NOT_INITIALIZED: initialization error"
+        '''
+        # physical_devices = tf.config.list_physical_devices('GPU')
+        # for gpu_instance in physical_devices: 
+        #     tf.config.experimental.set_memory_growth(gpu_instance, True)
     
+    def run(self):
+        if self.use_gpu:
+            _LOGGER.info('Detector using GPU')
+            with contextlib.suppress(Exception):
+                del os.environ['CUDA_VISIBLE_DEVICES']
+            import tensorflow as tf
+            physical_devices = tf.config.list_physical_devices('GPU')
+            for gpu_instance in physical_devices: 
+                tf.config.experimental.set_memory_growth(gpu_instance, True)
+        else:
+            _LOGGER.info('Detector will not use GPU')
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+        while self.running:
+            if self.request.empty():
+                continue
+            data = self.request.get()
+            try:
+                model = data['model']
+                thresh = data['thresh']
+                image = cv2.imdecode(np.fromstring(data['image'], np.uint8), cv2.IMREAD_UNCHANGED)
+                self.load(self.modelpath, model)
+                box = self.detect(image, thresh)
+                _LOGGER.debug(f'Found {len(box)} detection')
+                msg = {'success': True, 'gpu': self.use_gpu, 'box': box}
+            except Exception as exc:
+                _LOGGER.exception(exc)
+                msg = {'success': False, 'gpu': self.use_gpu, 'error': str(exc)}
+            finally:
+                self.response.put(msg)
+
+    def stop(self):
+        self.running = False
+
     def load(self, path, modelname):
         if modelname != self.modelname:
             # load the model if it is not loaded before
+            _LOGGER.info(f'Loading model {modelname}')
             self.load_model(path, modelname)
             self.load_labels(path, modelname)
             self.modelname = modelname
@@ -64,6 +110,7 @@ class TF2DetectorModel():
 
     @timing
     def load_model(self, path, modelname):
+        import tensorflow as tf
         if not os.path.exists(os.path.join(path, modelname, 'saved_model')):
             raise FileNotFoundError(f'Model {modelname} not found')
         saved_model = tf.saved_model.load(os.path.join(path, modelname, 'saved_model'))
@@ -102,6 +149,7 @@ class TF2DetectorModel():
 
     @timing
     def detect(self, image, thresh=75):
+        import tensorflow as tf
         image = np.asarray(image)
         height = image.shape[0] # Image height
         width = image.shape[1] # Image width

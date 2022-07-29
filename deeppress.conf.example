@@ -36,3 +36,10 @@ LOCAL_HOST = 'localhost'
 LOCAL_PORT = 8080
 LOCAL_AUTH_TOKEN = 'YWRtaW46YmFzZWFwcA=='
 
+###########################
+# Training COnfigurations #
+###########################
+NUM_STEPS_FOR_EVAL = 5000
+IMAGE_HEIGHT = 600
+IMAGE_WIDTH  = 800
+ADD_QUANTIZATION = False

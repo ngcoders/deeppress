@@ -1,6 +1,6 @@
 import sys
 import cv2
-import tensorflow as tf
+# import tensorflow as tf
 import random
 import json
 import logging
@@ -43,6 +43,7 @@ class TFRConverter:
             self.counts = {'train': 0, 'test': 0, 'classes': len(self.categories)}
 
     def __enter__(self):
+        import tensorflow as tf
         self.train_writer = tf.io.TFRecordWriter(self.train_set)
         self.test_writer = tf.io.TFRecordWriter(self.test_set)
         return self
@@ -101,6 +102,7 @@ class TFRConverter:
         return 'person', person_id
 
     def create_tf_example(self, filename, boxes):
+        import tensorflow as tf
         img = cv2.imread(filename)
         if img is None:
             return None

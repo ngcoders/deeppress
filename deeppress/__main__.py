@@ -70,6 +70,25 @@ def detect_objects():
         thresh = request.forms.get('thresh', default=75, type=int)
         if thresh < 1 or thresh > 99:
             return {'success': False, 'error': "Thresh value should be from 1 to 99"}
+        data = {
+            'model': model,
+            'image' : image.file.read(),
+            'thresh' : thresh,
+        }
+        return app.detect_box(data)
+    except Exception as exc:
+        _LOGGER.exception(exc)
+        return {'success': False, 'error': str(exc)}
+
+
+@route('/detection2', method='POST')
+def detect_objects2():
+    try:
+        model = request.forms.get('model')
+        image = request.files.get('image', None)
+        thresh = request.forms.get('thresh', default=75, type=int)
+        if thresh < 1 or thresh > 99:
+            return {'success': False, 'error': "Thresh value should be from 1 to 99"}
         # thresh //= 100
         app.load_model(model)
         box = app.detect(image.file.read(), thresh)
@@ -105,9 +124,7 @@ def train_model():
 def restart():
     global app
     app.stop()
-    app.terminate()
     app = DeepPressApp()
-    app.start()
     return {'success': True}
 
 
@@ -134,7 +151,6 @@ def main(path=None):
     object.__setattr__(config, '_config', load_config(path))
     ensure_paths()
     app = DeepPressApp()
-    app.start()
 
     install(AuthPlugin(config.LOCAL_AUTH_TOKEN))
     run(host='0.0.0.0', port=8000)

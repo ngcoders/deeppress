@@ -22,6 +22,7 @@ DEFAULTS = {
     'NUM_STEPS_FOR_EVAL': 5000,
     'IMAGE_HEIGHT': 640,
     'IMAGE_WIDTH': 640,
+    'ADD_QUANTIZATION': False
 }
 
 
@@ -82,8 +83,8 @@ def _postprocess_config(data):
 
 def _sanitize_data(data, allow_internal=False):
     allowed = set(DEFAULTS)
-    for key in set(data) - allowed:
-        warnings.warn('Ignoring unknown config key {}'.format(key))
+    # for key in set(data) - allowed:
+    #     warnings.warn('Ignoring unknown config key {}'.format(key))
     return {k: v for k, v in data.items() if k in allowed}
 
 
