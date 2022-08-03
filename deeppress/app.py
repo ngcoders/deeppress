@@ -1,4 +1,5 @@
 import time
+import queue
 from multiprocessing import Queue
 from deeppress.tf2_detection import TF2DetectorModel as DetectorModel
 from deeppress.trainer import TrainingApp
@@ -50,12 +51,11 @@ class DeepPressApp():
         self.request.put(data)
         time_start = time.time()
         while True:
-            if time.time() - time_start > 100:
-                # wait timeout
+            try:
+                response = self.response.get(block=True, timeout=100)
+            except queue.Empty:
+                print('Error in detect_box: Timeout', flush=True)
                 return {'success': False, 'error': 'Timeout'}
-            if self.request.empty():
-                continue
-            response = self.response.get()
             print(response, flush=True)
             return response
 

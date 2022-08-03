@@ -118,11 +118,15 @@ class EditPipeline():
     def ssd(self, job, model_config, train_config, counts):
         ''' configurations specific for ssd '''
         model_config.ssd.num_classes = counts
-        # model_config.ssd.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
-        # model_config.ssd.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
-        model_config.ssd.image_resizer.keep_aspect_ratio_resizer.min_dimension = config.IMAGE_HEIGHT
-        model_config.ssd.image_resizer.keep_aspect_ratio_resizer.max_dimension = config.IMAGE_WIDTH
-        model_config.ssd.image_resizer.keep_aspect_ratio_resizer.pad_to_max_dimension = True
+        if not self.job['add_quantization']:
+            model_config.ssd.image_resizer.keep_aspect_ratio_resizer.min_dimension = config.IMAGE_HEIGHT
+            model_config.ssd.image_resizer.keep_aspect_ratio_resizer.max_dimension = config.IMAGE_WIDTH
+            model_config.ssd.image_resizer.keep_aspect_ratio_resizer.pad_to_max_dimension = True
+        # else:
+            # the tflite needs the height and width to be the same (as in the original pipeline.config)
+            # so do not change it
+            # model_config.ssd.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
+            # model_config.ssd.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
 
         try:
             learning_rate = job['learning_rate']
