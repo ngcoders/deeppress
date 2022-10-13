@@ -75,6 +75,7 @@ def _postprocess_config(data):
     data['BASE_MODELS_PATH'] = os.path.join(data['DATA_DIR'], 'base_models')
     data['EVAL_DIR'] = os.path.join(data['DATA_DIR'], 'eval_dir')
     data['EXPORTED_MODELS'] = os.path.join(data['DATA_DIR'], 'exported_models')
+    data['TFLITE_MODELS'] = os.path.join(data['DATA_DIR'], 'tflite_models')
     data['DATASET_DIR'] = os.path.join(data['DATA_DIR'], 'dataset')
     data['TRAIN_DIR'] = os.path.join(data['DATA_DIR'], 'train')
     data['DOWNLOADS_DIR'] = os.path.join(data['DATA_DIR'], 'downloads')

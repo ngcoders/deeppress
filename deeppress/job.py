@@ -110,7 +110,7 @@ class EditPipeline():
         try:
             learning_rate = job['learning_rate']
         except Exception:
-            learning_rate = 0.000149
+            learning_rate = 0.00025
         train_config.batch_size = 2
         train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.initial_learning_rate = learning_rate
         train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.decay_steps = int(self.endStep / 5)
@@ -118,29 +118,36 @@ class EditPipeline():
     def ssd(self, job, model_config, train_config, counts):
         ''' configurations specific for ssd '''
         model_config.ssd.num_classes = counts
-        if not self.job['add_quantization']:
-            model_config.ssd.image_resizer.keep_aspect_ratio_resizer.min_dimension = config.IMAGE_HEIGHT
-            model_config.ssd.image_resizer.keep_aspect_ratio_resizer.max_dimension = config.IMAGE_WIDTH
-            model_config.ssd.image_resizer.keep_aspect_ratio_resizer.pad_to_max_dimension = True
+        # if not self.job['add_quantization']:
+        #     model_config.ssd.image_resizer.keep_aspect_ratio_resizer.min_dimension = config.IMAGE_HEIGHT
+        #     model_config.ssd.image_resizer.keep_aspect_ratio_resizer.max_dimension = config.IMAGE_WIDTH
+        #     model_config.ssd.image_resizer.keep_aspect_ratio_resizer.pad_to_max_dimension = True
         # else:
-            # the tflite needs the height and width to be the same (as in the original pipeline.config)
-            # so do not change it
-            # model_config.ssd.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
-            # model_config.ssd.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
+        #     the tflite needs the height and width to be the same (as in the original pipeline.config)
+        #     so do not change it
+        #     model_config.ssd.image_resizer.fixed_shape_resizer.height = config.IMAGE_HEIGHT
+        #     model_config.ssd.image_resizer.fixed_shape_resizer.width = config.IMAGE_WIDTH
 
         try:
             learning_rate = job['learning_rate']
         except Exception:
             learning_rate = 0.000159
-        train_config.batch_size = 2
-        train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.initial_learning_rate = learning_rate
-        train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.decay_steps = int(self.endStep / 4)
+        train_config.batch_size = 4
+        # train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.initial_learning_rate = learning_rate
+        # train_config.optimizer.adam_optimizer.learning_rate.exponential_decay_learning_rate.decay_steps = int(self.endStep / 4)
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.learning_rate_base = learning_rate
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.total_steps = self.endStep
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.warmup_learning_rate = learning_rate / 10
+        train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.warmup_steps = int(self.endStep / 100)
+        train_config.optimizer.momentum_optimizer.momentum_optimizer_value = 0.9
+        train_config.optimizer.use_moving_average: False
 
     def edit_pipeline(self, job, model, counts):
         ''' edit the pipeline '''
         train_dir = self.train_dir
         base_model_pipeline = os.path.join(config.BASE_MODELS_PATH, self.model['architecture'], 'pipeline.config')
         self.pipeline_config_path = os.path.join(train_dir, 'pipeline.config')
+        job['pipeline_config_path'] = self.pipeline_config_path
         if not os.path.exists(base_model_pipeline):
             raise FileNotFoundError(f'pipeline file does not exists in {base_model_pipeline}')
 
@@ -331,6 +338,7 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
         self.labels_file = os.path.join(self.data_dir, 'labels.pbtxt')
 
         self.job['add_quantization'] = bool(config.ADD_QUANTIZATION)
+        self.job['tfliteDir'] = os.path.join(config.TFLITE_MODELS, self.model['file_name'])
 
         self.endStep = int(self.job['steps'])
         # self.trainSteps = int(self.job['steps'])                           # for continues training
@@ -527,10 +535,11 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
 
             base_checkpoints_path = os.path.join(config.BASE_MODELS_PATH, model['architecture'])
             _tmf = os.path.join(config.TRAINED_MODELS_DATA, model['file_name'])
-            if os.path.isdir(_tmf):
-                _LOGGER.debug(f"Model already trained before. Continuing from the saved checkpoint found in {_tmf}")
-                base_checkpoints_path = _tmf
-            elif model['type'] == 'new':
+            # if os.path.isdir(_tmf):
+            #     _LOGGER.debug(f"Model already trained before. Continuing from the saved checkpoint found in {_tmf}")
+            #     base_checkpoints_path = _tmf
+            # elif model['type'] == 'new':
+            if model['type'] == 'new':
                 _LOGGER.debug(f"Training new model from a base model {model['architecture']}")
                 if not self.check_for_base_model(base_checkpoints_path, model):
                     return False
@@ -704,12 +713,12 @@ class TrainingJob(Process, TrainEvalWorkAround, EditPipeline):
         trained_dir = os.path.join(config.TRAINED_MODELS_DATA, model['file_name'])
         if os.path.exists(trained_dir):
             shutil.rmtree(trained_dir)
-        exporter.export(self.pipeline_config_path, trained_dir, self.train_dir)
+        exporter.export(job, model, trained_dir, self.train_dir)
 
         if self.copy_exported(train_dir, trained_dir, model):
             _LOGGER.info('Finished Training')
             # api.update_job_state(job, 'done', 'Training complete')
-            if os.path.exists(train_dir):
-                shutil.rmtree(train_dir)
+            # if os.path.exists(train_dir):
+            #     shutil.rmtree(train_dir)
             return True
-        return 
+        return False
