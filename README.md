@@ -1,40 +1,8 @@
-<style>
-body {
-    counter-reset: h1
-}
-h1 {
-    counter-reset: h2
-}
-h2 {
-    counter-reset: h3
-}
-h3 {
-    counter-reset: h4
-}
-h1:before {
-    counter-increment: h1;
-    /* content: counter(h1) ". "; */
-    content: '';
-}
-h2:before {
-    counter-increment: h2;
-    content: counter(h2) ". "
-}
-h3:before {
-    counter-increment: h3;
-    content: counter(h2) "." counter(h3) ". "
-}
-h4:before {
-    counter-increment: h4;
-    content: counter(h2) "." counter(h3) "." counter(h4) ". "
-}
-</style>
-
 # DEEP PRESS v2
 
 This is a documentation detailing the instructions to set up Deep Press v2
 
-## Pre-Conditions
+## 1. Pre-Conditions
 
 Make sure the Ubuntu version is 20.04
 ```
@@ -51,18 +19,18 @@ Check if NVIDIA graphics card is installed on your machine
 lspci | grep -i nvidia
 ```
 
-### A few notable changes in Deep Press v2 are:
+A few notable changes in Deep Press v2 are:
 1. This runs on tensorflow 2 (tested with 2.9.1)
 1. The structure of the model file directory is changed
 
-### Old Structure:
+### 1.1. Old Structure
 ```
    .
    └── models                            # folder which contains the models
        ├── model1.pb                     # name of the model
        └── ssd.pb                        # name of the model; example, ssd
 ```
-### New Structure:
+### 1.2. New Structure
 ```
    .
    ├── models                            # folder which contains the models
@@ -87,7 +55,7 @@ lspci | grep -i nvidia
 
 A detailed view on the folder structure is described in [Folder Structure](folder-structure.md)
 
-## Removing Previous Installations
+## 2. Removing Previous Installations
 
 To remove CUDA Toolkit:
 ```
@@ -117,7 +85,7 @@ sudo apt -y autoremove
 sudo apt -y autoclean
 ```
 
-## Install Video Driver
+## 3. Install Video Driver
 
 Check nvidia-driver version
 ```
@@ -141,7 +109,7 @@ sudo prime-select nvidia
 sudo reboot
 ```
 
-## Install CUDA Toolkit
+## 4. Install CUDA Toolkit
 
 Commands to install CUDA v11.2 Toolkit if the required files are to be downloaded are:
 ```
@@ -154,7 +122,7 @@ sudo apt update
 sudo apt -y install cuda-toolkit-11-2
 ```
 
-## Install cuDNN Library
+## 5. Install cuDNN Library
 
 Check if cuDNN is already installed
 ```
@@ -209,7 +177,7 @@ Check if the hold is applied
 apt-mark showhold
 ```
 
-## Update Environment Variables
+## 6. Update Environment Variables
 Almost there! We’ll have to update a couple of environment variables. First, check if CUDA is already in your system path:
 ```
 echo $PATH
@@ -246,7 +214,7 @@ echo $PATH
 echo $LD_LIBRARY_PATH
 ```
 
-## Installing dependencies
+## 7. Installing dependencies
 
 To install dependencies
 ```
@@ -260,7 +228,7 @@ apt-transport-https ca-certificates gnupg \
 && sudo apt -y autoclean \
 && sudo rm -r /var/lib/apt/lists/*
 ```
-## Install Object Detection
+## 8. Install Object Detection
 
 Clone the tensorflow model directory
 ```
@@ -279,7 +247,7 @@ Test the installation.
 python3 object_detection/builders/model_builder_tf2_test.py
 ```
 
-## Install Tensorflow GPU
+## 9. Install Tensorflow GPU
 
 First, uninstall tensorflow-gpu since they are now covered under the same package: (may need to sudo)
 ```
@@ -317,7 +285,7 @@ Check if the tensorflow installation is correct by running
 python3 -c "import tensorflow as tf;print(tf.reduce_sum(tf.random.normal([1000, 1000])))"
 ```
 
-## Running Deep Press
+## 10. Running Deep Press
 
 1. Pull the project from the repository. At the time of writing this documentation, the repository with the tensorflow 2 updates is present in the branch `7-port-to-tf2`.
     ```
@@ -356,7 +324,7 @@ python3 -c "import tensorflow as tf;print(tf.reduce_sum(tf.random.normal([1000, 
 
 1. The service is available at `http://0.0.0.0:8000`. Please input the IP address of the machine with the designated port value at Deeppress > Settings found at [this link](https://hal.avuity.com/wp-admin/admin.php?page=settings).
 
-## Setting up Wordpress and GuI Login
+## 11. Setting up Wordpress and GuI Login
 
 The Deeppress script is available as a WordPress plugin and needs Wordpress to be installed before we can manage and create models in it. We will use a commonly available wordpress environment setup tool Wordops and use that to install our deeppress plugin inside it. Please make sure no existing Services like nginx mysql exist on the server we are setting this up on.
 
@@ -383,7 +351,7 @@ After you have setup installed Deeppress visit settings page of deeppress and se
 
 If ssl needs to be installed, the site config path should be `/etc/nginx/sites-availbile/{domain.name}`. Wordops support letsencrypt certificates if your domain is available on the cloud.
 
-## Documentation Version History
+## 12. Documentation Version History
 
 | Date | Author | Changes |
 |:-----|:-------|:--------|
